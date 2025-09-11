@@ -139,10 +139,15 @@ class Sensing(threading.Thread):
                 # print("Front right IR sensor value: ", self.frontRightIR)
                 sleep(0.1)
 
+                
+
                 """
                 self.sock.sendall("a battery_charge".encode())
                 print("Battery charge: ", self.sock.recv(128).decode())
                 """
+
+                # play song while sensing if near line
+                # sock.sendall("a set_song(1, [[62,32],[65,32],[63,32],[62,32],[65,32],[63,32]] )".encode())    
 
 # END OF SENSING
 
