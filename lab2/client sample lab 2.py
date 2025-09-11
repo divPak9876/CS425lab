@@ -110,27 +110,35 @@ class Sensing(threading.Thread):
     
     def run(self):
         while self.RUNNING:
-            sleep(1)
+            # sleep(1)
             # This is where I would get a sensor update
             # Store it in this class
             # You can change the polling frequency to optimize performance, don't forget to use socketLock
             with socketLock:
                 # left IR
                 self.sock.sendall("a cliff_left_signal".encode())
-                print("Left IR sensor value: ", self.sock.recv(128).decode())
+                self.leftIR = self.sock.recv(128).decode()
+                # print("Left IR sensor value: ", self.leftIR)
                 sleep(0.1)
+
                 # left front IR
                 self.sock.sendall("a cliff_front_left_signal".encode())
-                print("Front left IR sensor value: ", self.sock.recv(128).decode())
+                self.frontLeftIR = self.sock.recv(128).decode()
+                # print("Front left IR sensor value: ", self.frontLeftIR)
                 sleep(0.1)
+
                 # right IR
                 self.sock.sendall("a cliff_right_signal".encode())
-                print("Right IR sensor value: ", self.sock.recv(128).decode())
+                self.rightIR = self.sock.recv(128).decode()
+                # print("Right IR sensor value: ", self.rightIR)
                 sleep(0.1)
+                
                 # right front IR
                 self.sock.sendall("a cliff_front_right_signal".encode())
-                print("Front right IR sensor value: ", self.sock.recv(128).decode())
+                self.frontRightIR = self.sock.recv(128).decode()
+                # print("Front right IR sensor value: ", self.frontRightIR)
                 sleep(0.1)
+
                 """
                 self.sock.sendall("a battery_charge".encode())
                 print("Battery charge: ", self.sock.recv(128).decode())
