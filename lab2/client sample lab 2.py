@@ -117,28 +117,40 @@ class Sensing(threading.Thread):
             with socketLock:
                 # left IR
                 self.sock.sendall("a cliff_left_signal".encode())
-                self.leftIR = self.sock.recv(128).decode()
+                self.leftIR = int(self.sock.recv(128).decode())
                 # print("Left IR sensor value: ", self.leftIR)
                 sleep(0.1)
 
                 # left front IR
                 self.sock.sendall("a cliff_front_left_signal".encode())
-                self.frontLeftIR = self.sock.recv(128).decode()
+                self.frontLeftIR = int(self.sock.recv(128).decode())
                 # print("Front left IR sensor value: ", self.frontLeftIR)
                 sleep(0.1)
 
                 # right IR
                 self.sock.sendall("a cliff_right_signal".encode())
-                self.rightIR = self.sock.recv(128).decode()
+                self.rightIR = int(self.sock.recv(128).decode())
                 # print("Right IR sensor value: ", self.rightIR)
                 sleep(0.1)
                 
                 # right front IR
                 self.sock.sendall("a cliff_front_right_signal".encode())
-                self.frontRightIR = self.sock.recv(128).decode()
+                self.frontRightIR = int(self.sock.recv(128).decode())
                 # print("Front right IR sensor value: ", self.frontRightIR)
                 sleep(0.1)
 
+                if self.frontRightIR < 2000:
+                    print("Line detected on front-right IR:", self.frontRightIR)
+
+                    # Load a one-note song
+                    self.sock.sendall("a set_song(1, [[60,32]])".encode())
+                    _ = self.sock.recv(128) 
+
+                    # Play the song
+                    self.sock.sendall("a play_song(1)".encode())
+                    _ = self.sock.recv(128)  
+                    print("Played one note (Middle C)")
+                    sleep(1)   
                 
 
                 """
@@ -146,8 +158,7 @@ class Sensing(threading.Thread):
                 print("Battery charge: ", self.sock.recv(128).decode())
                 """
 
-                # play song while sensing if near line
-                # sock.sendall("a set_song(1, [[62,32],[65,32],[63,32],[62,32],[65,32],[63,32]] )".encode())    
+                   
 
 # END OF SENSING
 
