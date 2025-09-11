@@ -22,7 +22,7 @@ class StateMachine():
 
     def __init__(self):
         # CONFIGURATION PARAMETERS
-        self.IP_ADDRESS = "raspberrypi.local" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
+        self.IP_ADDRESS = "192.168.1.102" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
         self.CONTROLLER_PORT = 5001
         self.TIMEOUT = 10					# If its unable to connect after 10 seconds, give up.  Want this to be a while so robot can init.
         self.STATE = States.LISTEN
@@ -110,13 +110,31 @@ class Sensing(threading.Thread):
     
     def run(self):
         while self.RUNNING:
-            sleep(0.2)
+            sleep(1)
             # This is where I would get a sensor update
             # Store it in this class
             # You can change the polling frequency to optimize performance, don't forget to use socketLock
             with socketLock:
+                # left IR
+                self.sock.sendall("a cliff_left_signal".encode())
+                print("Left IR sensor value: ", self.sock.recv(128).decode())
+                sleep(0.1)
+                # left front IR
+                self.sock.sendall("a cliff_front_left_signal".encode())
+                print("Front left IR sensor value: ", self.sock.recv(128).decode())
+                sleep(0.1)
+                # right IR
+                self.sock.sendall("a cliff_right_signal".encode())
+                print("Right IR sensor value: ", self.sock.recv(128).decode())
+                sleep(0.1)
+                # right front IR
+                self.sock.sendall("a cliff_front_right_signal".encode())
+                print("Front right IR sensor value: ", self.sock.recv(128).decode())
+                sleep(0.1)
+                """
                 self.sock.sendall("a battery_charge".encode())
                 print("Battery charge: ", self.sock.recv(128).decode())
+                """
 
 # END OF SENSING
 
