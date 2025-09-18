@@ -62,7 +62,18 @@ class StateMachine():
         while(self.RUNNING):
             sleep(0.1)
             if self.STATE == States.LISTEN:
-                pass
+                if self.sensors.frontLeftIR < 2000:
+                    print("Line detected on front-right IR:", self.sensors.frontLeftIR)
+
+                    # Load a one-note song
+                    self.sock.sendall("a set_song(1, [[60,32]])".encode())
+                    _ = self.sock.recv(128) 
+
+                    # Play the song
+                    self.sock.sendall("a play_song(1)".encode())
+                    _ = self.sock.recv(128)  
+                    print("Played one note (Middle C)")
+                    sleep(1)
             
 
         # END OF CONTROL LOOP
@@ -114,49 +125,43 @@ class Sensing(threading.Thread):
             # This is where I would get a sensor update
             # Store it in this class
             # You can change the polling frequency to optimize performance, don't forget to use socketLock
+            """
             with socketLock:
                 # left IR
                 self.sock.sendall("a cliff_left_signal".encode())
                 self.leftIR = int(self.sock.recv(128).decode())
                 # print("Left IR sensor value: ", self.leftIR)
-                sleep(0.1)
+            sleep(0.1)
+            """
 
+            with socketLock:
                 # left front IR
                 self.sock.sendall("a cliff_front_left_signal".encode())
                 self.frontLeftIR = int(self.sock.recv(128).decode())
-                # print("Front left IR sensor value: ", self.frontLeftIR)
-                sleep(0.1)
+                print("Front left IR sensor value: ", self.frontLeftIR)
+            sleep(0.1)
 
+            """
+            with socketLock:
                 # right IR
                 self.sock.sendall("a cliff_right_signal".encode())
                 self.rightIR = int(self.sock.recv(128).decode())
                 # print("Right IR sensor value: ", self.rightIR)
-                sleep(0.1)
-                
+            sleep(0.1)
+            """
+
+            with socketLock:  
                 # right front IR
                 self.sock.sendall("a cliff_front_right_signal".encode())
                 self.frontRightIR = int(self.sock.recv(128).decode())
-                # print("Front right IR sensor value: ", self.frontRightIR)
-                sleep(0.1)
+                print("Front right IR sensor value: ", self.frontRightIR)
+            sleep(0.1)         
 
-                if self.frontRightIR < 2000:
-                    print("Line detected on front-right IR:", self.frontRightIR)
-
-                    # Load a one-note song
-                    self.sock.sendall("a set_song(1, [[60,32]])".encode())
-                    _ = self.sock.recv(128) 
-
-                    # Play the song
-                    self.sock.sendall("a play_song(1)".encode())
-                    _ = self.sock.recv(128)  
-                    print("Played one note (Middle C)")
-                    sleep(1)   
-                
-
-                """
+            """
+            with socketLock:
                 self.sock.sendall("a battery_charge".encode())
                 print("Battery charge: ", self.sock.recv(128).decode())
-                """
+            """
 
                    
 
