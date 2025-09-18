@@ -68,17 +68,25 @@ class StateMachine():
                 
                 if self.sensors.frontLeftIR < 2000: 
                     self.STATE = States.TURN_L
-                    with socketLock:
-                        self.sock.sendall("a drive_straight(0)".encode())
-                        self.sock.recv(128)
                     print("LEFT")
-                    
+
                 elif self.sensors.frontRightIR < 2000:
                     self.STATE = States.TURN_R
-                    with socketLock:
-                        self.sock.sendall("a drive_straight(0)".encode())
-                        self.sock.recv(128)
                     print("RIGHT")
+            
+            elif self.STATE == States.TURN_L:
+                with socketLock:
+                    self.sock.sendall("a drive_direct(50, -75)".encode())
+                    self.sock.recv(128)
+                if self.sensors.frontLeftIR > 2000:
+                    self.STATE = States.DRIVE
+
+            elif self.STATE == States.TURN_R:
+                with socketLock:
+                    self.sock.sendall("a drive_direct(-75, 50)".encode())
+                    self.sock.recv(128)
+                if self.sensors.frontRightIR > 2000:
+                    self.STATE = States.DRIVE
 
                 """
                 if self.sensors.frontLeftIR < 2000:
@@ -162,7 +170,7 @@ class Sensing(threading.Thread):
                 self.sock.sendall("a cliff_front_left_signal".encode())
                 self.frontLeftIR = int(self.sock.recv(128).decode())
                 # print("Front left IR sensor value: ", self.frontLeftIR)
-            sleep(0.1)
+            sleep(0.05)
 
             """
             with socketLock:
@@ -178,7 +186,7 @@ class Sensing(threading.Thread):
                 self.sock.sendall("a cliff_front_right_signal".encode())
                 self.frontRightIR = int(self.sock.recv(128).decode())
                 # print("Front right IR sensor value: ", self.frontRightIR)
-            sleep(0.1)         
+            sleep(0.05)         
 
             """
             with socketLock:
