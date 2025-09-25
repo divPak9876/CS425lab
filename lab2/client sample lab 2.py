@@ -77,6 +77,17 @@ class StateMachine():
                     self.sock.sendall("a drive_straight(50)".encode())
                     self.sock.recv(128)
                 
+                with socketLock: #play music 
+                    # Load a one-note song
+                    self.sock.sendall("a set_song(1, [[60,32]])".encode())
+                    _ = self.sock.recv(128) 
+
+                    # Play the song
+                    self.sock.sendall("a play_song(1)".encode())
+                    _ = self.sock.recv(128)  
+                    print("Played one note (Middle C)")
+                    sleep(1)
+                
                 if self.sensors.frontLeftIR < 2000: 
                     self.STATE = States.TURN_L
                     print("LEFT")
