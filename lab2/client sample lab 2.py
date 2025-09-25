@@ -100,6 +100,11 @@ class StateMachine():
                 with socketLock:
                     self.sock.sendall("a drive_direct(50, -75)".encode())
                     self.sock.recv(128)
+                
+                with socketLock:#turn on led
+                    self.sock.sendall("a set_leds(false, false, false, false, 100,100)".encode())
+                    self.sock.rev(128)
+
                 if self.sensors.frontLeftIR > 2000:
                     self.STATE = States.DRIVE
 
