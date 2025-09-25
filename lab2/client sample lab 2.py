@@ -13,9 +13,16 @@ socketLock = threading.Lock()
 
 # You should fill this in with your states
 class States(enum.Enum):
+<<<<<<< Updated upstream
     LISTEN = enum.auto()
     WANDER = enum.auto()
     FIND_THE_DOOR = enum.auto()
+=======
+    WANDER = enum.auto()
+    DRIVE = enum.auto()
+    TURN_L = enum.auto()
+    TURN_R = enum.auto()
+>>>>>>> Stashed changes
 
 # Not a thread because this is the main thread which can be important for GUI access
 class StateMachine():
@@ -25,7 +32,11 @@ class StateMachine():
         self.IP_ADDRESS = "192.168.1.102" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
         self.CONTROLLER_PORT = 5001
         self.TIMEOUT = 10					# If its unable to connect after 10 seconds, give up.  Want this to be a while so robot can init.
+<<<<<<< Updated upstream
         self.STATE = States.LISTEN
+=======
+        self.STATE = States.WANDER
+>>>>>>> Stashed changes
         self.RUNNING = True
         self.DIST = False
         
@@ -60,9 +71,63 @@ class StateMachine():
 
         # BEGINNING OF THE CONTROL LOOP
         while(self.RUNNING):
+<<<<<<< Updated upstream
             sleep(0.1)
             if self.sensors.frontLeftIR < 2000 or self.sensors.frontRightIR < 2000:
                 print("Line!")
+=======
+            sleep(0.05)
+
+            if self.STATE == States.DRIVE:
+                with socketLock:
+                    self.sock.sendall("a drive_straight(50)".encode())
+                    self.sock.recv(128)
+                
+                if self.sensors.frontLeftIR < 2200: 
+                    self.STATE = States.TURN_L
+                    print("LEFT")
+
+                elif self.sensors.frontRightIR < 2200:
+                    self.STATE = States.TURN_R
+                    print("RIGHT")
+            
+            elif self.STATE == States.TURN_L:
+                with socketLock:
+                    self.sock.sendall("a drive_direct(50, -75)".encode())
+                    self.sock.recv(128)
+                if self.sensors.frontLeftIR > 2200:
+                    self.STATE = States.DRIVE
+
+            elif self.STATE == States.TURN_R:
+                with socketLock:
+                    self.sock.sendall("a drive_direct(-75, 50)".encode())
+                    self.sock.recv(128)
+                if self.sensors.frontRightIR > 2200:
+                    self.STATE = States.DRIVE
+
+            elif self.STATE == States.WANDER:
+                with socketLock:
+                    self.sock.sendall("a drive_straight(50)".encode())
+                    self.sock.recv(128)
+
+                if self.sensors.frontLeftIR < 2000 or self.sensors.frontRightIR < 2000:
+                    self.STATE = States.DRIVE
+
+                """
+                if self.sensors.frontLeftIR < 2000:
+                    print("Line detected on front-right IR:", self.sensors.frontLeftIR)
+
+                    # Load a one-note song
+                    self.sock.sendall("a set_song(1, [[60,32]])".encode())
+                    _ = self.sock.recv(128) 
+
+                    # Play the song
+                    self.sock.sendall("a play_song(1)".encode())
+                    _ = self.sock.recv(128)  
+                    print("Played one note (Middle C)")
+                    sleep(1)
+                """
+>>>>>>> Stashed changes
             
 
         # END OF CONTROL LOOP
@@ -130,7 +195,10 @@ class Sensing(threading.Thread):
             # left front IR
             with socketLock:
                 self.sock.sendall("a cliff_front_left_signal".encode())
-                self.frontLeftIR = int(self.sock.recv(128).decode())
+                try:
+                    self.frontLeftIR = int(self.sock.recv(128).decode())
+                except:
+                    print("doh!")
                 # print("Front left IR sensor value: ", self.frontLeftIR)
             sleep(0.1)
 
@@ -146,7 +214,10 @@ class Sensing(threading.Thread):
             # right front IR
             with socketLock:
                 self.sock.sendall("a cliff_front_right_signal".encode())
-                self.frontRightIR = int(self.sock.recv(128).decode())
+                try:
+                    self.frontRightIR = int(self.sock.recv(128).decode())
+                except:
+                    print("doh!")
                 # print("Front right IR sensor value: ", self.frontRightIR)
             sleep(0.1)
 
