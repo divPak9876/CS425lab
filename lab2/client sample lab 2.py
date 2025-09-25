@@ -11,6 +11,17 @@ import enum
 
 socketLock = threading.Lock()
 
+"""
+TODO Bonuses:
+- Wander
+
+- Far sensors
+
+- indicator of current action
+
+- turn speed based on brightness of line 
+"""
+
 # You should fill this in with your states
 class States(enum.Enum):
     DRIVE = enum.auto()
