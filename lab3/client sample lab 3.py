@@ -156,6 +156,10 @@ class ImageProc(threading.Thread):
         self.latestImg = []
         self.feedback = []
         self.thresholds = {'lo_hue':0,'lo_saturation':0,'lo_value':0,'hi_hue':0,'hi_saturation':0,'hi_value':0}
+
+        # this masks out a yellow beachball
+        self.yellowBeachball = {'lo_hue':0,'lo_saturation':100,'lo_value':150,'hi_hue':90,'hi_saturation':210,'hi_value':240}
+
         """
         self.thresholds = {'low_red':0,'high_red':0,'low_green':0,'high_green':0,'low_blue':0,'high_blue':0}
         """
@@ -202,12 +206,23 @@ class ImageProc(threading.Thread):
         """
         
         # TODO: Work here
+        # HSV slider/masking
+        """
         low = (self.thresholds['lo_hue'], self.thresholds['lo_saturation'], self.thresholds['lo_value'])
         high = (self.thresholds['hi_hue'], self.thresholds['hi_saturation'], self.thresholds['hi_value'])
-
+        """
+        
+        low = (self.yellowBeachball['lo_hue'], self.yellowBeachball['lo_saturation'], self.yellowBeachball['lo_value'])
+        high = (self.yellowBeachball['hi_hue'], self.yellowBeachball['hi_saturation'], self.yellowBeachball['hi_value'])
+        
         cv2.cvtColor(self.latestImg, cv2.COLOR_RGB2HSV_FULL)
 
         theMask = cv2.inRange(self.latestImg, low, high)
+
+        kernel = numpy.ones((3, 3), numpy.uint8)
+        theMask = cv2.erode(theMask, kernel, iterations=1)
+        theMask = cv2.dilate(theMask, kernel, iterations=2)
+        theMask = cv2.erode(theMask, kernel, iterations=1)
     
         # END TODO
         return cv2.bitwise_and(self.latestImg, self.latestImg, mask=theMask)
@@ -244,6 +259,7 @@ if __name__ == "__main__":
                      lambda x: sm.video.setThresh('high_blue', x) )
     """
 
+    # HSV sliders
     cv2.createTrackbar('lo_hue', 'sliders', sm.video.thresholds['lo_hue'], 180,
                       lambda x: sm.video.setThresh('lo_hue', x) )
     cv2.createTrackbar('hi_hue', 'sliders', sm.video.thresholds['hi_hue'], 180,
