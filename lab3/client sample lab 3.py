@@ -158,7 +158,7 @@ class ImageProc(threading.Thread):
         self.thresholds = {'lo_hue':0,'lo_saturation':0,'lo_value':0,'hi_hue':0,'hi_saturation':0,'hi_value':0}
 
         # this masks out a yellow beachball
-        self.yellowBeachball = {'lo_hue':0,'lo_saturation':100,'lo_value':150,'hi_hue':90,'hi_saturation':210,'hi_value':240}
+        self.yellowBeachball = {'lo_hue':0,'lo_saturation':115,'lo_value':175,'hi_hue':150,'hi_saturation':255,'hi_value':255}
 
         """
         self.thresholds = {'low_red':0,'high_red':0,'low_green':0,'high_green':0,'low_blue':0,'high_blue':0}
@@ -212,20 +212,44 @@ class ImageProc(threading.Thread):
         high = (self.thresholds['hi_hue'], self.thresholds['hi_saturation'], self.thresholds['hi_value'])
         """
         
+        # defined low and high values for beachball
         low = (self.yellowBeachball['lo_hue'], self.yellowBeachball['lo_saturation'], self.yellowBeachball['lo_value'])
         high = (self.yellowBeachball['hi_hue'], self.yellowBeachball['hi_saturation'], self.yellowBeachball['hi_value'])
-        
-        cv2.cvtColor(self.latestImg, cv2.COLOR_RGB2HSV_FULL)
 
-        theMask = cv2.inRange(self.latestImg, low, high)
+        cv2.cvtColor(self.latestImg, cv2.COLOR_RGB2HSV_FULL)    # convert to HSV
 
+        theMask = cv2.inRange(self.latestImg, low, high)    # mask image
+
+        # erode and dilate to remove noise
         kernel = numpy.ones((3, 3), numpy.uint8)
         theMask = cv2.erode(theMask, kernel, iterations=1)
-        theMask = cv2.dilate(theMask, kernel, iterations=2)
-        theMask = cv2.erode(theMask, kernel, iterations=1)
+        theMask = cv2.dilate(theMask, kernel, iterations=1)
+        theMask = cv2.erode(theMask, kernel, iterations=1)        
+
+        components, labels, stats, centroids = cv2.connectedComponentsWithStats(theMask, connectivity=8, ltype=cv2.CV_32S)
+
+        self.drawCircle() # draw circle ontop of image
     
         # END TODO
         return cv2.bitwise_and(self.latestImg, self.latestImg, mask=theMask)
+    
+    def drawCircle(self, statsArr):
+        # extract the 4th element from each row and sort
+        pxCount = [row[3] for row in statsArr]
+        pxSorted = sorted(pxCount, reverse=True)
+
+        if len(pxSorted) < 2:
+            return      # no object in image
+
+        maskTarget = pxSorted[1] # target object
+
+        # find the index of the target object
+        objIndx = [i for i, row in enumerate(statsArr) if row[3] == maskTarget]
+
+        # draw circle onto image
+        self.latestImg = cv2.circle(self.latestImg, (statsArr[objIndx,2], statsArr[objIndx,3]), 50, (255, 255, 255), 2)
+
+        return
 
 # END OF IMAGEPROC
 
@@ -260,9 +284,9 @@ if __name__ == "__main__":
     """
 
     # HSV sliders
-    cv2.createTrackbar('lo_hue', 'sliders', sm.video.thresholds['lo_hue'], 180,
+    cv2.createTrackbar('lo_hue', 'sliders', sm.video.thresholds['lo_hue'], 360,
                       lambda x: sm.video.setThresh('lo_hue', x) )
-    cv2.createTrackbar('hi_hue', 'sliders', sm.video.thresholds['hi_hue'], 180,
+    cv2.createTrackbar('hi_hue', 'sliders', sm.video.thresholds['hi_hue'], 360,
                      lambda x: sm.video.setThresh('hi_hue', x) )
     
     cv2.createTrackbar('lo_saturation', 'sliders', sm.video.thresholds['lo_saturation'], 255,
