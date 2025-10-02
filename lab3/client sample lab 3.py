@@ -155,7 +155,10 @@ class ImageProc(threading.Thread):
         self.RUNNING = True
         self.latestImg = []
         self.feedback = []
+        self.thresholds = {'lo_hue':0,'lo_saturation':0,'lo_value':0,'hi_hue':0,'hi_saturation':0,'hi_value':0}
+        """
         self.thresholds = {'low_red':0,'high_red':0,'low_green':0,'high_green':0,'low_blue':0,'high_blue':0}
+        """
 
     def run(self):
         url = "http://"+self.IP_ADDRESS+":"+str(self.PORT)
@@ -192,11 +195,19 @@ class ImageProc(threading.Thread):
         self.thresholds[name] = value
     
     def doImgProc(self):
+        """
         low = (self.thresholds['low_blue'], self.thresholds['low_green'], self.thresholds['low_red'])
         high = (self.thresholds['high_blue'], self.thresholds['high_green'], self.thresholds['high_red'])
         theMask = cv2.inRange(self.latestImg, low, high)
+        """
         
         # TODO: Work here
+        low = (self.thresholds['lo_hue'], self.thresholds['lo_saturation'], self.thresholds['lo_value'])
+        high = (self.thresholds['hi_hue'], self.thresholds['hi_saturation'], self.thresholds['hi_value'])
+
+        cv2.cvtColor(self.latestImg, cv2.COLOR_RGB2HSV_FULL)
+
+        theMask = cv2.inRange(self.latestImg, low, high)
     
         # END TODO
         return cv2.bitwise_and(self.latestImg, self.latestImg, mask=theMask)
@@ -216,6 +227,7 @@ if __name__ == "__main__":
     sm.start()
     
     # Probably safer to do this on the main thread rather than in ImgProc init
+    """
     cv2.createTrackbar('low_red', 'sliders', sm.video.thresholds['low_red'], 255,
                       lambda x: sm.video.setThresh('low_red', x) )
     cv2.createTrackbar('high_red', 'sliders', sm.video.thresholds['high_red'], 255,
@@ -230,6 +242,22 @@ if __name__ == "__main__":
                       lambda x: sm.video.setThresh('low_blue', x) )
     cv2.createTrackbar('high_blue', 'sliders', sm.video.thresholds['high_blue'], 255,
                      lambda x: sm.video.setThresh('high_blue', x) )
+    """
+
+    cv2.createTrackbar('lo_hue', 'sliders', sm.video.thresholds['lo_hue'], 180,
+                      lambda x: sm.video.setThresh('lo_hue', x) )
+    cv2.createTrackbar('hi_hue', 'sliders', sm.video.thresholds['hi_hue'], 180,
+                     lambda x: sm.video.setThresh('hi_hue', x) )
+    
+    cv2.createTrackbar('lo_saturation', 'sliders', sm.video.thresholds['lo_saturation'], 255,
+                      lambda x: sm.video.setThresh('lo_saturation', x) )
+    cv2.createTrackbar('hi_saturation', 'sliders', sm.video.thresholds['hi_saturation'], 255,
+                     lambda x: sm.video.setThresh('hi_saturation', x) )
+    
+    cv2.createTrackbar('lo_value', 'sliders', sm.video.thresholds['lo_value'], 255,
+                      lambda x: sm.video.setThresh('lo_value', x) )
+    cv2.createTrackbar('hi_value', 'sliders', sm.video.thresholds['hi_value'], 255,
+                     lambda x: sm.video.setThresh('hi_value', x) )
 
     while len(sm.video.latestImg) == 0 or len(sm.video.feedback) == 0:
         sleep(1)
