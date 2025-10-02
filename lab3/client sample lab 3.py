@@ -16,7 +16,7 @@ import copy
 socketLock = threading.Lock()
 imageLock = threading.Lock()
 
-IP_ADDRESS = "raspberrypi-7.local" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
+IP_ADDRESS = "192.168.1.102" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
 RESIZE_SCALE = 2 # try a larger value if your computer is running slow.
 ENABLE_ROBOT_CONNECTION = False
 
