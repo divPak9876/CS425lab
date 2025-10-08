@@ -225,13 +225,14 @@ class ImageProc(threading.Thread):
 
         # erode and dilate to remove noise
         kernel = numpy.ones((3, 3), numpy.uint8)
-        theMask = cv2.erode(theMask, kernel, iterations=1)
-        theMask = cv2.dilate(theMask, kernel, iterations=1)
-        theMask = cv2.erode(theMask, kernel, iterations=1)        
+        theMask = cv2.erode(theMask, kernel, iterations=3)
+        theMask = cv2.dilate(theMask, kernel, iterations=3)
+        theMask = cv2.erode(theMask, kernel, iterations=2)        
 
         components, labels, stats, centroids = cv2.connectedComponentsWithStats(theMask, connectivity=8, ltype=cv2.CV_32S)
 
         self.drawCircle(stats) # draw circle ontop of image
+        # print(centroids)
     
         # END TODO
         return cv2.bitwise_and(self.latestImg, self.latestImg, mask=theMask)
