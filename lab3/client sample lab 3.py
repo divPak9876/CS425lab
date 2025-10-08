@@ -248,10 +248,14 @@ class ImageProc(threading.Thread):
 
         # find the index of the target object
         objIndx = [i for i, row in enumerate(statsArr) if row[3] == maskTarget]
+        if not objIndx:
+            return  # safety check
 
+        idx = objIndx[0]
         # draw circle onto image
         
-        self.latestImg = cv2.circle(self.latestImg, (statsArr[objIndx][2], statsArr[objIndx][3]), 50, (360, 255, 255), 2)
+        self.latestImg = cv2.circle(self.latestImg,(int(statsArr[idx][cv2.CC_STAT_LEFT] + statsArr[idx][cv2.CC_STAT_WIDTH] / 2),int(statsArr[idx][cv2.CC_STAT_TOP] + statsArr[idx][cv2.CC_STAT_HEIGHT] / 2)),
+                                    50,(360, 255, 255),2)
 
         return
 
