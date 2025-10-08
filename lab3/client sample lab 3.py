@@ -255,8 +255,9 @@ class ImageProc(threading.Thread):
         idx = objIndx[0]
         # draw circle onto image
         
-        self.latestImg = cv2.circle(self.latestImg,(int(statsArr[idx][cv2.CC_STAT_LEFT] + statsArr[idx][cv2.CC_STAT_WIDTH] / 2),int(statsArr[idx][cv2.CC_STAT_TOP] + statsArr[idx][cv2.CC_STAT_HEIGHT] / 2)),
-                                    50,(360, 255, 255),2)
+        self.latestImg = cv2.circle(self.latestImg,(int(statsArr[idx][cv2.CC_STAT_LEFT] + statsArr[idx][cv2.CC_STAT_WIDTH] / 2),
+                                                    int(statsArr[idx][cv2.CC_STAT_TOP] + statsArr[idx][cv2.CC_STAT_HEIGHT] / 2)),
+                                                    50,(360, 255, 255),2)
 
         return
 
