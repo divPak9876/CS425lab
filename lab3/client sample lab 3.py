@@ -157,6 +157,7 @@ class ImageProc(threading.Thread):
         self.feedback = []
         self.thresholds = {'lo_hue':0,'lo_saturation':0,'lo_value':0,'hi_hue':0,'hi_saturation':0,'hi_value':0}
 
+        # hard code for yellow beach ball
         # this masks out a yellow beachball
         self.yellowBeachball = {'lo_hue':0,'lo_saturation':115,'lo_value':175,'hi_hue':150,'hi_saturation':255,'hi_value':255}
 
@@ -211,6 +212,8 @@ class ImageProc(threading.Thread):
         low = (self.thresholds['lo_hue'], self.thresholds['lo_saturation'], self.thresholds['lo_value'])
         high = (self.thresholds['hi_hue'], self.thresholds['hi_saturation'], self.thresholds['hi_value'])
         """
+
+        
         
         # defined low and high values for beachball
         low = (self.yellowBeachball['lo_hue'], self.yellowBeachball['lo_saturation'], self.yellowBeachball['lo_value'])
