@@ -228,7 +228,7 @@ class ImageProc(threading.Thread):
 
         components, labels, stats, centroids = cv2.connectedComponentsWithStats(theMask, connectivity=8, ltype=cv2.CV_32S)
 
-        self.drawCircle() # draw circle ontop of image
+        self.drawCircle(stats) # draw circle ontop of image
     
         # END TODO
         return cv2.bitwise_and(self.latestImg, self.latestImg, mask=theMask)
@@ -247,7 +247,8 @@ class ImageProc(threading.Thread):
         objIndx = [i for i, row in enumerate(statsArr) if row[3] == maskTarget]
 
         # draw circle onto image
-        self.latestImg = cv2.circle(self.latestImg, (statsArr[objIndx,2], statsArr[objIndx,3]), 50, (255, 255, 255), 2)
+        
+        self.latestImg = cv2.circle(self.latestImg, (statsArr[objIndx][2], statsArr[objIndx][3]), 50, (360, 255, 255), 2)
 
         return
 
