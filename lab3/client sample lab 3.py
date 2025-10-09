@@ -22,7 +22,9 @@ ENABLE_ROBOT_CONNECTION = False
 
 # You should fill this in with your states
 class States(enum.Enum):
-    LISTEN = enum.auto()
+    SEARCH = enum.auto()
+    TURN_L = enum.auto()
+    TURN_R = enum.auto()
 
 class StateMachine(threading.Thread):
 
@@ -33,7 +35,7 @@ class StateMachine(threading.Thread):
         self.IP_ADDRESS = IP_ADDRESS
         self.CONTROLLER_PORT = 5001
         self.TIMEOUT = 10					# If its unable to connect after 10 seconds, give up.  Want this to be a while so robot can init.
-        self.STATE = States.LISTEN
+        self.STATE = States.SEARCH
         self.RUNNING = True
         self.DIST = False
         self.video = ImageProc()
@@ -76,7 +78,8 @@ class StateMachine(threading.Thread):
         # BEGINNING OF THE CONTROL LOOP
         while(self.RUNNING):
             sleep(0.1)
-            if self.STATE == States.LISTEN:
+
+            if self.STATE == States.SEARCH:
                 pass
             # TODO: Work here
         
