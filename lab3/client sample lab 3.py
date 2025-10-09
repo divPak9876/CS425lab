@@ -39,6 +39,11 @@ class StateMachine(threading.Thread):
         self.RUNNING = True
         self.DIST = False
         self.video = ImageProc()
+        self.ball_visible = False
+        self.ball_x = 0
+        self.ball_y = 0
+        self.image_center_x = 0
+        self.image_center_y = 0
         # Start video
         self.video.start()
         
@@ -76,12 +81,25 @@ class StateMachine(threading.Thread):
     def run(self):
 
         # BEGINNING OF THE CONTROL LOOP
-        while(self.RUNNING):
+        while self.RUNNING:
             sleep(0.1)
 
             if self.STATE == States.SEARCH:
-                pass
+                print("SEARCH: Rotating 360 degrees...")
+                angle = 0  # start rotation counter
+
+                # rotate in 10° increments until full turn or stopped
+                while angle < 360 and self.RUNNING:
+                    self.rotate_step(10)   # rotate 10 degrees per step
+                    angle += 10
+                    sleep(0.1)
+
+                # stop rotation after full 360
+                self.stop_rotation()
+                print("SEARCH complete — stopped rotation.")
+
             # TODO: Work here
+
 
         # END OF CONTROL LOOP
         
