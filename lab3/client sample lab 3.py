@@ -18,11 +18,12 @@ imageLock = threading.Lock()
 
 IP_ADDRESS = "192.168.1.102" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
 RESIZE_SCALE = 2 # try a larger value if your computer is running slow.
-ENABLE_ROBOT_CONNECTION = False
+ENABLE_ROBOT_CONNECTION = True
 
 # You should fill this in with your states
 class States(enum.Enum):
     SEARCH = enum.auto()
+    VISIBLE = enum.auto()
     TURN_L = enum.auto()
     TURN_R = enum.auto()
 
@@ -39,11 +40,7 @@ class StateMachine(threading.Thread):
         self.RUNNING = True
         self.DIST = False
         self.video = ImageProc()
-        self.ball_visible = False
-        self.ball_x = 0
-        self.ball_y = 0
-        self.image_center_x = 0
-        self.image_center_y = 0
+
         # Start video
         self.video.start()
         
@@ -87,16 +84,46 @@ class StateMachine(threading.Thread):
             if self.STATE == States.SEARCH:
                 print("SEARCH: Rotating 360 degrees...")
                 angle = 0  # start rotation counter
-
+                
                 # rotate in 10° increments until full turn or stopped
                 while angle < 360 and self.RUNNING:
-                    self.rotate_step(10)   # rotate 10 degrees per step
-                    angle += 10
-                    sleep(0.1)
 
-                # stop rotation after full 360
-                self.stop_rotation()
+                    if self.video.visible:               # found ball
+                        self.STATE = States.VISIBLE
+                        angle = 360
+
+                    else:                               # ball is not seen
+                        with socketLock:
+                            self.sock.sendall("a spin_left(100)".encode())
+                            print(self.sock.recv(128))
+
+                        angle += 10
+                        sleep(0.1)
+
                 print("SEARCH complete — stopped rotation.")
+
+            elif self.STATE == States.VISIBLE:
+                if self.video.objCentroid[0] < (cv2.CC_STAT_WIDTH / 3):         # left third of screen
+                    self.STATE = States.TURN_L
+                elif self.video.objCentroid[0] > (2 * cv2.CC_STAT_WIDTH / 3):   # right third of screen
+                    self.STATE = States.TURN_R
+                else:
+                    self.STATE = States.SEARCH
+
+            
+            elif self.STATE == States.TURN_L:
+                print("LEFT!!!")
+                sleep(1)
+
+                if self.video.visible != True:
+                    self.STATE = States.SEARCH
+
+            elif self.STATE == States.TURN_R:
+                print("RIGHT!!!")
+                sleep(1)
+
+                if self.video.visible != True:
+                    self.STATE = States.SEARCH
 
             # TODO: Work here
 
@@ -176,6 +203,8 @@ class ImageProc(threading.Thread):
         self.latestImg = []
         self.feedback = []
         self.thresholds = {'lo_hue':0,'lo_saturation':0,'lo_value':0,'hi_hue':0,'hi_saturation':0,'hi_value':0}
+        self.objCentroid = (0,0)
+        self.visible = False
 
         # hard code for yellow beach ball
         # this masks out a yellow beachball
@@ -249,8 +278,9 @@ class ImageProc(threading.Thread):
 
         components, labels, stats, centroids = cv2.connectedComponentsWithStats(theMask, connectivity=8, ltype=cv2.CV_32S)
 
-        self.drawCircle(stats) # draw circle ontop of image
-        # print(centroids)
+        # self.drawCircle(stats) # draw circle ontop of image
+        
+        self.findCenter(stats) # find center of object
     
         # END TODO
         return cv2.bitwise_and(self.latestImg, self.latestImg, mask=theMask)
@@ -277,6 +307,33 @@ class ImageProc(threading.Thread):
                                                     int(statsArr[idx][cv2.CC_STAT_TOP] + statsArr[idx][cv2.CC_STAT_HEIGHT] / 2)),
                                                     50,(360, 255, 255),2)
 
+        return
+    
+    def findCenter(self, statsArr):
+        # extract the 4th element from each row and sort
+        pxCount = [row[3] for row in statsArr]
+        pxSorted = sorted(pxCount, reverse=True)
+
+        if len(pxSorted) < 2:
+            self.visible = False
+            return      # no object in image
+
+        maskTarget = pxSorted[1] # target object
+
+        # find the index of the target object
+        objIndx = [i for i, row in enumerate(statsArr) if row[3] == maskTarget]
+        if not objIndx:
+            self.visible = False
+            return  # safety check
+
+        idx = objIndx[0]
+        # draw circle onto image
+
+        self.objCentroid = (int(statsArr[idx][cv2.CC_STAT_LEFT] + statsArr[idx][cv2.CC_STAT_WIDTH] / 2),
+                    int(statsArr[idx][cv2.CC_STAT_TOP] + statsArr[idx][cv2.CC_STAT_HEIGHT] / 2))
+        
+        self.visible = True
+        
         return
 
 # END OF IMAGEPROC
