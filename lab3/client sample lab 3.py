@@ -95,7 +95,7 @@ class StateMachine(threading.Thread):
                     else:                               # ball is not seen
                         with socketLock:
                             self.sock.sendall("a spin_left(100)".encode())
-                            print(self.sock.recv(128))
+                            self.sock.recv(128)
 
                         angle += 10
                         sleep(0.1)
@@ -103,10 +103,16 @@ class StateMachine(threading.Thread):
                 print("SEARCH complete — stopped rotation.")
 
             elif self.STATE == States.VISIBLE:
+                with socketLock:                                                # stop robot
+                    self.sock.sendall("a drive_straight(0)".encode())
+                    self.sock.recv(128)
+
                 if self.video.objCentroid[0] < (cv2.CC_STAT_WIDTH / 3):         # left third of screen
                     self.STATE = States.TURN_L
+
                 elif self.video.objCentroid[0] > (2 * cv2.CC_STAT_WIDTH / 3):   # right third of screen
                     self.STATE = States.TURN_R
+
                 else:
                     self.STATE = States.SEARCH
 
