@@ -94,7 +94,7 @@ class StateMachine(threading.Thread):
 
                     else:                               # ball is not seen
                         with socketLock:
-                            self.sock.sendall("a spin_left(100)".encode())
+                            self.sock.sendall("a spin_left(50)".encode())
                             self.sock.recv(128)
 
                         angle += 10
@@ -107,11 +107,14 @@ class StateMachine(threading.Thread):
                     self.sock.sendall("a drive_straight(0)".encode())
                     self.sock.recv(128)
 
-                if self.video.objCentroid[0] < (cv2.CC_STAT_WIDTH / 3):         # left third of screen
+                if self.video.objCentroid[0] > (cv2.CC_STAT_WIDTH / 6):         # left third of screen
+                    self.STATE = States.TURN_R
+
+                elif self.video.objCentroid[0] < (5 * cv2.CC_STAT_WIDTH / 6):   # right third of screen
                     self.STATE = States.TURN_L
 
-                elif self.video.objCentroid[0] > (2 * cv2.CC_STAT_WIDTH / 3):   # right third of screen
-                    self.STATE = States.TURN_R
+                elif self.video.visible:
+                    self.STATE = States.VISIBLE
 
                 else:
                     self.STATE = States.SEARCH
@@ -119,17 +122,29 @@ class StateMachine(threading.Thread):
             
             elif self.STATE == States.TURN_L:
                 print("LEFT!!!")
-                sleep(1)
+                
+                with socketLock:
+                    self.sock.sendall("a spin_left(50)".encode())
+                    self.sock.recv(128)
 
                 if self.video.visible != True:
                     self.STATE = States.SEARCH
+
+                elif self.video.objCentroid[0] > (5 * cv2.CC_STAT_WIDTH / 6):
+                    self.STATE = States.VISIBLE
 
             elif self.STATE == States.TURN_R:
                 print("RIGHT!!!")
-                sleep(1)
+
+                with socketLock:
+                    self.sock.sendall("a spin_right(50)".encode())
+                    self.sock.recv(128)
 
                 if self.video.visible != True:
                     self.STATE = States.SEARCH
+
+                elif self.video.objCentroid[0] < (cv2.CC_STAT_WIDTH / 6):
+                    self.STATE = States.VISIBLE
 
             # TODO: Work here
 
