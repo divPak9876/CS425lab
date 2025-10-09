@@ -107,11 +107,11 @@ class StateMachine(threading.Thread):
                     self.sock.sendall("a drive_straight(0)".encode())
                     self.sock.recv(128)
 
-                if self.video.objCentroid[0] > (cv2.CC_STAT_WIDTH / 6):         # left third of screen
-                    self.STATE = States.TURN_R
-
-                elif self.video.objCentroid[0] < (5 * cv2.CC_STAT_WIDTH / 6):   # right third of screen
+                if self.video.objCentroid[0] < (640 / 6):         # left third of screen
                     self.STATE = States.TURN_L
+
+                elif self.video.objCentroid[0] > (5 * 640 / 6):   # right third of screen
+                    self.STATE = States.TURN_R
 
                 elif self.video.visible:
                     self.STATE = States.VISIBLE
@@ -130,7 +130,7 @@ class StateMachine(threading.Thread):
                 if self.video.visible != True:
                     self.STATE = States.SEARCH
 
-                elif self.video.objCentroid[0] > (5 * cv2.CC_STAT_WIDTH / 6):
+                elif self.video.objCentroid[0] > (cv2.CC_STAT_WIDTH / 6):
                     self.STATE = States.VISIBLE
 
             elif self.STATE == States.TURN_R:
@@ -143,7 +143,7 @@ class StateMachine(threading.Thread):
                 if self.video.visible != True:
                     self.STATE = States.SEARCH
 
-                elif self.video.objCentroid[0] < (cv2.CC_STAT_WIDTH / 6):
+                elif self.video.objCentroid[0] < (5 * cv2.CC_STAT_WIDTH / 6):
                     self.STATE = States.VISIBLE
 
             # TODO: Work here
