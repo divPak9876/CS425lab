@@ -79,7 +79,6 @@ class StateMachine(threading.Thread):
             if self.STATE == States.LISTEN:
                 pass
             # TODO: Work here
-        
 
         # END OF CONTROL LOOP
         
@@ -211,9 +210,7 @@ class ImageProc(threading.Thread):
         """
         low = (self.thresholds['lo_hue'], self.thresholds['lo_saturation'], self.thresholds['lo_value'])
         high = (self.thresholds['hi_hue'], self.thresholds['hi_saturation'], self.thresholds['hi_value'])
-        """
-
-        
+        """ 
         
         # defined low and high values for beachball
         low = (self.yellowBeachball['lo_hue'], self.yellowBeachball['lo_saturation'], self.yellowBeachball['lo_value'])
