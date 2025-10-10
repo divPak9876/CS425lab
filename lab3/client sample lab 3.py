@@ -26,6 +26,9 @@ class States(enum.Enum):
     VISIBLE = enum.auto()
     TURN_L = enum.auto()
     TURN_R = enum.auto()
+    FAR = enum.auto()
+    FORWARD = enum.auto()
+    CLOSE = enum.auto()
 
 class StateMachine(threading.Thread):
 
@@ -40,6 +43,10 @@ class StateMachine(threading.Thread):
         self.RUNNING = True
         self.DIST = False
         self.video = ImageProc()
+        self.leftScreen = 640 / 3
+        self.rightScreen = self.leftScreen * 2
+        self.topScreen = 480 / 3
+        self.bottomScreen = self.topScreen * 2
 
         # Start video
         self.video.start()
@@ -81,70 +88,118 @@ class StateMachine(threading.Thread):
         while self.RUNNING:
             sleep(0.1)
 
+            try:
+                print(self.video.objCentroid[0], ", ", self.video.objCentroid[1])
+            except:
+                pass
+
+            # starting state to look for yellow beach ball
             if self.STATE == States.SEARCH:
-                print("SEARCH: Rotating 360 degrees...")
-                angle = 0  # start rotation counter
+                print("Ferb: SEARCHING")
                 
-                # rotate in 10° increments until full turn or stopped
-                while angle < 360 and self.RUNNING:
+                if self.video.visible:              # found ball
+                    self.STATE = States.VISIBLE
 
-                    if self.video.visible:               # found ball
-                        self.STATE = States.VISIBLE
-                        angle = 360
+                else:                               # ball is not seen
+                    with socketLock:
+                        self.sock.sendall("a spin_left(50)".encode())
+                        self.sock.recv(128)
 
-                    else:                               # ball is not seen
-                        with socketLock:
-                            self.sock.sendall("a spin_left(50)".encode())
-                            self.sock.recv(128)
-
-                        angle += 10
-                        sleep(0.1)
-
-                print("SEARCH complete — stopped rotation.")
-
+            # state to decide next state
             elif self.STATE == States.VISIBLE:
-                with socketLock:                                                # stop robot
+                with socketLock:                                    # stop robot
                     self.sock.sendall("a drive_straight(0)".encode())
                     self.sock.recv(128)
 
-                if self.video.objCentroid[0] < (640 / 6):         # left third of screen
+                if self.video.objCentroid[0] < self.leftScreen:           # left sixth of screen
                     self.STATE = States.TURN_L
 
-                elif self.video.objCentroid[0] > (5 * 640 / 6):   # right third of screen
+                elif self.video.objCentroid[0] > self.rightScreen:     # right sixth of screen
                     self.STATE = States.TURN_R
 
-                elif self.video.visible:
-                    self.STATE = States.VISIBLE
+                elif self.video.objCentroid[1] > self.bottomScreen:     # lower third of screen
+                    self.STATE = States.FAR
 
-                else:
+                elif self.video.objCentroid[1] < self.topScreen:         # upper third of screen
+                    self.STATE = States.CLOSE
+
+                elif self.video.visible:                            # drive forward at normal pace
+                    self.STATE = States.FORWARD
+
+                else:                                               # no ball; search
                     self.STATE = States.SEARCH
 
             
             elif self.STATE == States.TURN_L:
-                print("LEFT!!!")
+                print("Ferb: LEFT!!!")
                 
                 with socketLock:
                     self.sock.sendall("a spin_left(50)".encode())
                     self.sock.recv(128)
 
+                # check if state should be changed
                 if self.video.visible != True:
                     self.STATE = States.SEARCH
 
-                elif self.video.objCentroid[0] > (cv2.CC_STAT_WIDTH / 6):
+                elif self.video.objCentroid[0] > self.leftScreen:
                     self.STATE = States.VISIBLE
 
             elif self.STATE == States.TURN_R:
-                print("RIGHT!!!")
+                print("Ferb: RIGHT!!!")
 
                 with socketLock:
                     self.sock.sendall("a spin_right(50)".encode())
                     self.sock.recv(128)
 
+                # check if state should be changed
                 if self.video.visible != True:
                     self.STATE = States.SEARCH
 
-                elif self.video.objCentroid[0] < (5 * cv2.CC_STAT_WIDTH / 6):
+                elif self.video.objCentroid[0] < self.rightScreen:
                     self.STATE = States.VISIBLE
+            
+            elif self.STATE == States.FAR:
+                print("Ferb: FAR!!!")
+
+                with socketLock:
+                    self.sock.sendall("a drive_straight(150)".encode())
+                    self.sock.recv(128)
+
+                # check if state should be changed
+                if self.video.visible != True:
+                    self.STATE = States.SEARCH
+
+                elif self.video.objCentroid[1] < self.topScreen:
+                    self.STATE = States.VISIBLE
+
+            elif self.STATE == States.FORWARD:
+                print("Ferb: FORWARD!!!")
+
+                with socketLock:
+                    self.sock.sendall("a drive_straight(100)".encode())
+                    self.sock.recv(128)
+
+                # check if state should be changed
+                if self.video.visible != True:
+                    self.STATE = States.SEARCH
+
+                elif self.video.objCentroid[1] > self.bottomScreen or self.video.objCentroid[1] < self.topScreen:
+                    self.STATE = States.VISIBLE
+
+            elif self.STATE == States.CLOSE:
+                print("Ferb: CLOSE!!!")
+
+                with socketLock:
+                    self.sock.sendall("a drive_straight(50)".encode())
+                    self.sock.recv(128)
+
+                # check if state should be changed
+                if self.video.visible != True:
+                    self.STATE = States.SEARCH
+
+                elif self.video.objCentroid[1] > self.topScreen:
+                    self.STATE = States.VISIBLE
+                    
 
             # TODO: Work here
 
@@ -208,8 +263,9 @@ class Sensing(threading.Thread):
             # Store it in this class
             # You can change the polling frequency to optimize performance, don't forget to use socketLock
             with socketLock:
-                self.sock.sendall("a distance".encode())
-                print(self.sock.recv(128))
+                # self.sock.sendall("a distance".encode())
+                # print(self.sock.recv(128))
+                pass
 
 
 # END OF SENSING
@@ -348,8 +404,13 @@ class ImageProc(threading.Thread):
             return  # safety check
 
         idx = objIndx[0]
-        # draw circle onto image
 
+        # draw circle onto image
+        self.latestImg = cv2.circle(self.latestImg,(int(statsArr[idx][cv2.CC_STAT_LEFT] + statsArr[idx][cv2.CC_STAT_WIDTH] / 2),
+                                                    int(statsArr[idx][cv2.CC_STAT_TOP] + statsArr[idx][cv2.CC_STAT_HEIGHT] / 2)),
+                                                    10,(360, 255, 255), 3)
+
+        # find center
         self.objCentroid = (int(statsArr[idx][cv2.CC_STAT_LEFT] + statsArr[idx][cv2.CC_STAT_WIDTH] / 2),
                     int(statsArr[idx][cv2.CC_STAT_TOP] + statsArr[idx][cv2.CC_STAT_HEIGHT] / 2))
         
