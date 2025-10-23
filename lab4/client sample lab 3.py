@@ -283,10 +283,10 @@ class ImageProc(threading.Thread):
         self.yellowBeachball = {'lo_hue':0,'lo_saturation':115,'lo_value':130,'hi_hue':90,'hi_saturation':185,'hi_value':230}
 
         # this masks out a green cone
-        self.greenCone = {'lo_hue':30,'lo_saturation':125,'lo_value':80,'hi_hue':125,'hi_saturation':170,'hi_value':120}
+        self.greenCone = {'lo_hue':38,'lo_saturation':127,'lo_value':64,'hi_hue':124,'hi_saturation':208,'hi_value':111}
 
         # this mask out a red cone
-        self.redCone = {'lo_hue':0,'lo_saturation':35,'lo_value':135,'hi_hue':100,'hi_saturation':155,'hi_value':245}
+        self.redCone = {'lo_hue':0,'lo_saturation':56,'lo_value':141,'hi_hue':88,'hi_saturation':116,'hi_value':227}
 
         """
         self.thresholds = {'low_red':0,'high_red':0,'low_green':0,'high_green':0,'low_blue':0,'high_blue':0}
@@ -333,8 +333,7 @@ class ImageProc(threading.Thread):
         theMask = cv2.inRange(self.latestImg, low, high)
         """
         
-        # TODO: Work here
-        # HSV slider/masking
+        # Lab 3
         
         low = (self.thresholds['lo_hue'], self.thresholds['lo_saturation'], self.thresholds['lo_value'])
         high = (self.thresholds['hi_hue'], self.thresholds['hi_saturation'], self.thresholds['hi_value'])
@@ -344,11 +343,12 @@ class ImageProc(threading.Thread):
         # defined low and high values for beachball
         low = (self.yellowBeachball['lo_hue'], self.yellowBeachball['lo_saturation'], self.yellowBeachball['lo_value'])
         high = (self.yellowBeachball['hi_hue'], self.yellowBeachball['hi_saturation'], self.yellowBeachball['hi_value'])
-        
-        cv2.cvtColor(self.latestImg, cv2.COLOR_RGB2HSV_FULL)    # convert to HSV
         """
 
+        """
+        cv2.cvtColor(self.latestImg, cv2.COLOR_RGB2HSV_FULL)    # convert to HSV
         theMask = cv2.inRange(self.latestImg, low, high)    # mask image
+        """
 
         """
         # erode and dilate to remove noise
@@ -364,7 +364,27 @@ class ImageProc(threading.Thread):
         
         self.findCenter(stats) # find center of object
         """
-        
+        # Lab 4
+
+        greenLo = (self.greenCone['lo_hue'], self.greenCone['lo_saturation'], self.greenCone['lo_value'])
+        greenHi = (self.greenCone['hi_hue'], self.greenCone['hi_saturation'], self.greenCone['hi_value'])
+
+        redLo = (self.redCone['lo_hue'], self.redCone['lo_saturation'], self.redCone['lo_value'])
+        redHi = (self.redCone['hi_hue'], self.redCone['hi_saturation'], self.redCone['hi_value'])
+
+        kernel = numpy.ones((3,3), numpy.uint8)
+
+        greenMask = cv2.inRange(self.latestImg, greenLo, greenHi)
+        redMask = cv2.inRange(self.latestImg, redLo, redHi)
+
+        greenMask = cv2.erode(greenMask, kernel, iterations=2)
+        greenMask = cv2.dilate(greenMask, kernel, iterations=4)
+
+        redMask = cv2.erode(redMask, kernel, iterations=2)
+        redMask = cv2.dilate(redMask, kernel, iterations=4)
+
+        theMask = cv2.bitwise_or(greenMask, redMask)
+
         # END TODO
         return cv2.bitwise_and(self.latestImg, self.latestImg, mask=theMask)
     
