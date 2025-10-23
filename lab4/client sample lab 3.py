@@ -278,6 +278,9 @@ class ImageProc(threading.Thread):
         self.objCentroid = (0,0)
         self.visible = False
 
+        self.greenCenter = (0,0)
+        self.redCenter = (0,0)
+
         # hard code for yellow beach ball
         # this masks out a yellow beachball
         self.yellowBeachball = {'lo_hue':0,'lo_saturation':115,'lo_value':130,'hi_hue':90,'hi_saturation':185,'hi_value':230}
@@ -362,10 +365,12 @@ class ImageProc(threading.Thread):
 
         # self.drawCircle(stats) # draw circle ontop of image
         
-        self.findCenter(stats) # find center of object
+        self.objCentroid = self.findCenter(stats) # find center of object
         """
+        
         # Lab 4
 
+        # cones
         greenLo = (self.greenCone['lo_hue'], self.greenCone['lo_saturation'], self.greenCone['lo_value'])
         greenHi = (self.greenCone['hi_hue'], self.greenCone['hi_saturation'], self.greenCone['hi_value'])
 
@@ -383,7 +388,31 @@ class ImageProc(threading.Thread):
         redMask = cv2.erode(redMask, kernel, iterations=2)
         redMask = cv2.dilate(redMask, kernel, iterations=4)
 
+        # beachball
+        low = (self.yellowBeachball['lo_hue'], self.yellowBeachball['lo_saturation'], self.yellowBeachball['lo_value'])
+        high = (self.yellowBeachball['hi_hue'], self.yellowBeachball['hi_saturation'], self.yellowBeachball['hi_value'])
+
+        yellowMask = cv2.inRange(self.latestImg, low, high)
+
+        kernel2 = numpy.ones((3, 3), numpy.uint8)
+        kernel3 = numpy.ones((5, 5), numpy.uint8)
+        yellowMask = cv2.erode(yellowMask, kernel2, iterations=4)
+        yellowMask = cv2.dilate(yellowMask, kernel3, iterations=5)
+        yellowMask = cv2.erode(yellowMask, kernel3, iterations=4)  
+
+
         theMask = cv2.bitwise_or(greenMask, redMask)
+        theMask = cv2.bitwise_or(theMask, yellowMask)
+
+        components, labels, greenStats, centroid = cv2.connectedComponentsWithStats(greenMask, connectivity=8, ltype=cv2.CV_32S)
+        components, labels, redStats, centroid = cv2.connectedComponentsWithStats(redMask, connectivity=8, ltype=cv2.CV_32S)
+        components, labels, yellowStats, centroid = cv2.connectedComponentsWithStats(yellowMask, connectivity=8, ltype=cv2.CV_32S)
+
+        self.greenCenter = self.findCenter(greenStats)
+        self.redCenter = self.findCenter(redStats)
+        self.objCentroid = self.findCenter(yellowStats)
+
+        print(self.greenCenter)
 
         # END TODO
         return cv2.bitwise_and(self.latestImg, self.latestImg, mask=theMask)
@@ -436,13 +465,12 @@ class ImageProc(threading.Thread):
                                                     int(statsArr[idx][cv2.CC_STAT_TOP] + statsArr[idx][cv2.CC_STAT_HEIGHT] / 2)),
                                                     10,(360, 255, 255), 3)
 
-        # find center
-        self.objCentroid = (int(statsArr[idx][cv2.CC_STAT_LEFT] + statsArr[idx][cv2.CC_STAT_WIDTH] / 2),
-                    int(statsArr[idx][cv2.CC_STAT_TOP] + statsArr[idx][cv2.CC_STAT_HEIGHT] / 2))
-        
         self.visible = True
-        
-        return
+
+        # find center
+        return (int(statsArr[idx][cv2.CC_STAT_LEFT] + statsArr[idx][cv2.CC_STAT_WIDTH] / 2),
+                    int(statsArr[idx][cv2.CC_STAT_TOP] + statsArr[idx][cv2.CC_STAT_HEIGHT] / 2))
+
 
 # END OF IMAGEPROC
 
