@@ -18,7 +18,7 @@ imageLock = threading.Lock()
 
 IP_ADDRESS = "192.168.1.102" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
 RESIZE_SCALE = 2 # try a larger value if your computer is running slow.
-ENABLE_ROBOT_CONNECTION = True
+ENABLE_ROBOT_CONNECTION = False
 
 # You should fill this in with your states
 class States(enum.Enum):
@@ -282,6 +282,12 @@ class ImageProc(threading.Thread):
         # this masks out a yellow beachball
         self.yellowBeachball = {'lo_hue':0,'lo_saturation':115,'lo_value':130,'hi_hue':90,'hi_saturation':185,'hi_value':230}
 
+        # this masks out a green cone
+        self.greenCone = {'lo_hue':30,'lo_saturation':125,'lo_value':80,'hi_hue':125,'hi_saturation':170,'hi_value':120}
+
+        # this mask out a red cone
+        self.redCone = {'lo_hue':0,'lo_saturation':35,'lo_value':135,'hi_hue':100,'hi_saturation':155,'hi_value':245}
+
         """
         self.thresholds = {'low_red':0,'high_red':0,'low_green':0,'high_green':0,'low_blue':0,'high_blue':0}
         """
@@ -329,19 +335,22 @@ class ImageProc(threading.Thread):
         
         # TODO: Work here
         # HSV slider/masking
-        """
+        
         low = (self.thresholds['lo_hue'], self.thresholds['lo_saturation'], self.thresholds['lo_value'])
         high = (self.thresholds['hi_hue'], self.thresholds['hi_saturation'], self.thresholds['hi_value'])
-        """
         
+
+        """
         # defined low and high values for beachball
         low = (self.yellowBeachball['lo_hue'], self.yellowBeachball['lo_saturation'], self.yellowBeachball['lo_value'])
         high = (self.yellowBeachball['hi_hue'], self.yellowBeachball['hi_saturation'], self.yellowBeachball['hi_value'])
         
         cv2.cvtColor(self.latestImg, cv2.COLOR_RGB2HSV_FULL)    # convert to HSV
+        """
 
         theMask = cv2.inRange(self.latestImg, low, high)    # mask image
 
+        """
         # erode and dilate to remove noise
         kernel = numpy.ones((3, 3), numpy.uint8)
         kernel2 = numpy.ones((5, 5), numpy.uint8)
@@ -354,7 +363,8 @@ class ImageProc(threading.Thread):
         # self.drawCircle(stats) # draw circle ontop of image
         
         self.findCenter(stats) # find center of object
-    
+        """
+        
         # END TODO
         return cv2.bitwise_and(self.latestImg, self.latestImg, mask=theMask)
     
