@@ -31,6 +31,9 @@ class States(enum.Enum):
     MEDIUM = enum.auto()
     CLOSE = enum.auto()
 
+    FIND = enum.auto()
+    CHASE = enum.auto()
+
 class StateMachine(threading.Thread):
 
     def __init__(self):
@@ -40,7 +43,7 @@ class StateMachine(threading.Thread):
         self.IP_ADDRESS = IP_ADDRESS
         self.CONTROLLER_PORT = 5001
         self.TIMEOUT = 10					# If its unable to connect after 10 seconds, give up.  Want this to be a while so robot can init.
-        self.STATE = States.SEARCH
+        self.STATE = States.FIND
         self.RUNNING = True
         self.DIST = False
         self.video = ImageProc()
@@ -48,6 +51,9 @@ class StateMachine(threading.Thread):
         self.rightScreen = self.leftScreen * 2
         self.topScreen = 2 * 240 / 5
         self.bottomScreen = 3 * 240 / 5
+
+        self.screenW = 320
+        self.screenH = 240
 
         # Start video
         self.video.start()
@@ -88,6 +94,28 @@ class StateMachine(threading.Thread):
         # BEGINNING OF THE CONTROL LOOP
         while self.RUNNING:
             sleep(0.1)
+
+            if self.STATE == States.FIND:
+                print("Ferb is going to find you...")
+                
+                if self.video.visible:              # found ball
+                    self.STATE = States.VISIBLE
+
+                else:                               # ball is not seen
+                    with socketLock:
+                        self.sock.sendall("a spin_left(50)".encode())
+                        self.sock.recv(128)
+            elif self.STATE == States.CHASE:
+                print("Ferb has found you, run.")
+                
+                if self.video.visible == False:
+                    self.STATE = States.VISIBLE
+
+                speed = 0
+
+                speed = None # put equation here that weighs objects in vision!!!
+
+
 
             # starting state to look for yellow beach ball
             if self.STATE == States.SEARCH:
