@@ -18,7 +18,7 @@ imageLock = threading.Lock()
 
 IP_ADDRESS = "192.168.1.102" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
 RESIZE_SCALE = 2 # try a larger value if your computer is running slow.
-ENABLE_ROBOT_CONNECTION = False
+ENABLE_ROBOT_CONNECTION = True
 
 # You should fill this in with your states
 class States(enum.Enum):
@@ -105,15 +105,82 @@ class StateMachine(threading.Thread):
                     with socketLock:
                         self.sock.sendall("a spin_left(50)".encode())
                         self.sock.recv(128)
-            elif self.STATE == States.CHASE:
-                print("Ferb has found you, run.")
+            # elif self.STATE == States.CHASE:
+            #     print("Ferb has found you, run.")
                 
-                if self.video.visible == False:
-                    self.STATE = States.VISIBLE
+            #     if self.video.visible == False:
+            #         self.STATE = States.VISIBLE
 
-                speed = 0
+            #     speed = 0
 
-                speed = None # put equation here that weighs objects in vision!!!
+            #     speed = None # put equation here that weighs objects in vision!!!
+            
+            #Start
+            elif self.STATE == States.CHASE:
+                print("Ferb: Chasing the beach ball while navigating between cones!")
+
+                # --- Check visibility ---
+                if not self.video.visible:
+                    print("Ferb lost the ball! Searching again...")
+                    self.STATE = States.SEARCH
+                    continue
+
+                # --- Extract object positions ---
+                ball_x, ball_y = self.video.objCentroid if self.video.objCentroid else (0, 0)
+                green_x, _ = self.video.greenCenter if self.video.greenCenter else (0, 0)
+                red_x, _ = self.video.redCenter if self.video.redCenter else (0, 0)
+                screen_center = self.screenW / 2
+
+                # --- Determine lane center (from cones) ---
+                if green_x > 0 and red_x > 0:
+                    lane_center = (green_x + red_x) / 2
+                else:
+                    lane_center = screen_center  # if one cone missing, drive straight
+
+                # --- Combine both influences (ball + lane) ---
+                # Give more weight to the ball, but still align with cones
+                if ball_x > 0:
+                    target_x = (0.7 * ball_x) + (0.3 * lane_center)
+                else:
+                    target_x = lane_center
+
+                # --- Compute steering adjustment ---
+                error = target_x - screen_center   # positive = ball is to the right
+                steering = int(error * 0.5)        # proportional control (gain = 0.5)
+                steering = max(min(steering, 100), -100)  # clamp to safe range
+
+                # --- Forward speed adjustment based on distance ---
+                if ball_y < self.topScreen:
+                    forward_speed = 80   # close → slow down
+                elif ball_y > self.bottomScreen:
+                    forward_speed = 180  # far → speed up
+                else:
+                    forward_speed = 130  # medium distance
+
+                # --- Cone avoidance boost ---
+                # If too close to a cone, bias steering away
+                cone_push = 40
+                if green_x > 0 and ball_x < green_x + 60:
+                    print("Ferb: Too close to left (green) cone → steering right!")
+                    steering += cone_push
+                if red_x > 0 and ball_x > red_x - 60:
+                    print("Ferb: Too close to right (red) cone → steering left!")
+                    steering -= cone_push
+
+                # Clamp again after adjustments
+                steering = max(min(steering, 100), -100)
+
+                # --- Send drive command ---
+                command = f"a drive({forward_speed},{-steering})"
+                with socketLock:
+                    self.sock.sendall(command.encode())
+                    self.sock.recv(128)
+
+                # Debug info
+                print(f"Ball at x={ball_x}, Green={green_x}, Red={red_x}, "
+                    f"Steering={steering}, Speed={forward_speed}")
+
+            #finish
 
 
 
