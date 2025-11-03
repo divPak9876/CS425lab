@@ -25,6 +25,7 @@ class States(enum.Enum):
     SEARCH = enum.auto()
     APPROACH = enum.auto()
     PASS_CONE = enum.auto()
+    FIGURE_8 = enum.auto()
 
 class StateMachine(threading.Thread):
 
@@ -50,7 +51,9 @@ class StateMachine(threading.Thread):
         self.center_y = self.screenH / 2
 
         self.turnLeft = True       # begin by zagging (left)
-        self.lastSeen = False      # seen yellow cone
+        self.lastSeen = False      # seen  cone
+
+        self.figure8 = False
 
         # Start video
         self.video.start()
@@ -122,13 +125,15 @@ class StateMachine(threading.Thread):
                 print(cone_w, ", ", cone_h)
 
                 # check if cone is within range
-                if cone_w > 60:                     # in range
+                if cone_w > 60 and not self.figure8:    # in range
                     self.STATE = States.PASS_CONE
+                elif cone_w > 60 and self.figure8:
+                    self.STATE = States.FIGURE_8
 
                 else:                               # not in range
                     # make cone center
                     error = x - self.center_x
-                    Kp = 0.6
+                    Kp = 0.5
                     turn_correction = int(max(min(error * Kp, 150), -150))
 
                     forward_speed = 120
@@ -150,7 +155,7 @@ class StateMachine(threading.Thread):
 
                     # turn right away from cone
                     with socketLock:
-                        self.sock.sendall("a drive_direct(150, 250)".encode())
+                        self.sock.sendall("a drive_direct(150, 225)".encode())
                         self.sock.recv(128)
                     sleep(2)
 
@@ -164,7 +169,62 @@ class StateMachine(threading.Thread):
                     with socketLock:
                         self.sock.sendall("a drive_direct(100, 150)".encode())
                         self.sock.recv(128)
-                    sleep(1)
+                    sleep(2)
+
+                    # Update state for next cone
+                    print("Finished passing cone on left, switching to SEARCH")
+                    self.STATE = States.SEARCH
+                    self.turnLeft = False   # choose right for next cone
+
+                else:  # pass on right
+                    print("Passing cone on right")
+
+                    # turn left away from cone
+                    with socketLock:
+                        self.sock.sendall("a drive_direct(225, 150)".encode())
+                        self.sock.recv(128)
+                    sleep(2)
+
+                    # turn right to straighten a bit
+                    with socketLock:
+                        self.sock.sendall("a drive_direct(100, 250)".encode())
+                        self.sock.recv(128)
+                    sleep(3)
+
+                    # drive forward to clear cone
+                    with socketLock:
+                        self.sock.sendall("a drive_direct(150, 100)".encode())
+                        self.sock.recv(128)
+                    sleep(2)
+
+                    # Update state
+                    print("Finished passing cone on right, switching to SEARCH")
+                    self.STATE = States.SEARCH
+                    self.turnLeft = True   # choose left for next cone
+            
+            # figure 8 instead of zig-zag
+            elif self.STATE == States.FIGURE_8:
+
+                if self.turnLeft:   # pass on left
+                    print("Passing cone on left")
+
+                    # turn right away from cone
+                    with socketLock:
+                        self.sock.sendall("a drive_direct(150, 225)".encode())
+                        self.sock.recv(128)
+                    sleep(2)
+
+                    # turn left to straighten a bit
+                    with socketLock:
+                        self.sock.sendall("a drive_direct(250, 100)".encode())
+                        self.sock.recv(128)
+                    sleep(7.5)
+
+                    # drive forward to clear cone
+                    with socketLock:
+                        self.sock.sendall("a drive_direct(100, 150)".encode())
+                        self.sock.recv(128)
+                    sleep(1.5)
 
                     # Update state for next cone
                     print("Finished passing cone on left, switching to SEARCH")
@@ -184,13 +244,13 @@ class StateMachine(threading.Thread):
                     with socketLock:
                         self.sock.sendall("a drive_direct(100, 250)".encode())
                         self.sock.recv(128)
-                    sleep(3)
+                    sleep(7.5)
 
                     # drive forward to clear cone
                     with socketLock:
-                        self.sock.sendall("a drive_direct(150, 100)".encode())
+                        self.sock.sendall("a drive_direct(110, 100)".encode())
                         self.sock.recv(128)
-                    sleep(2)
+                    sleep(1.5)
 
                     # Update state
                     print("Finished passing cone on right, switching to SEARCH")
