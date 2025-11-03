@@ -92,19 +92,19 @@ class StateMachine(threading.Thread):
             sleep(0.1)
 
             coneVisible = self.video.visible
-            coneCenter = self.video.objCentroid
+            coneCenter = self.video.redCenter
 
             # search
             if self.STATE == States.SEARCH:
 
-                print("SEARCHING for yellow cone...")
+                print("SEARCHING for orange/red cone...")
                 if coneVisible:
                     print("Cone found, switching to APPROACH")
                     self.STATE = States.APPROACH
 
                 else:
                     # spin in place until cone is found
-                    cmd = f"a spin_right(75)" if self.turnLeft else f"a spin_left(75)"
+                    cmd = f"a spin_right(75)" if not self.turnLeft else f"a spin_left(75)"
 
                     with socketLock:
                         self.sock.sendall(cmd.encode())
@@ -113,12 +113,12 @@ class StateMachine(threading.Thread):
             # approach
             elif self.STATE == States.APPROACH:
                 
-                if self.video.yellowBox == None:
+                if self.video.redBox == None:
                     self.STATE = States.SEARCH
                     continue
 
                 x, y = coneCenter
-                cone_x, cone_y, cone_w, cone_h = self.video.yellowBox  # width & height of cone
+                cone_x, cone_y, cone_w, cone_h = self.video.redBox  # width & height of cone
                 print(cone_w, ", ", cone_h)
 
                 # check if cone is within range
@@ -131,7 +131,7 @@ class StateMachine(threading.Thread):
                     Kp = 0.6
                     turn_correction = int(max(min(error * Kp, 150), -150))
 
-                    forward_speed = 100
+                    forward_speed = 120
                     left_speed = max(min(forward_speed - turn_correction, 200), -200)
                     right_speed = max(min(forward_speed + turn_correction, 200), -200)
 
@@ -150,19 +150,19 @@ class StateMachine(threading.Thread):
 
                     # turn right away from cone
                     with socketLock:
-                        self.sock.sendall("a drive_direct(100, 250)".encode())
+                        self.sock.sendall("a drive_direct(150, 250)".encode())
                         self.sock.recv(128)
                     sleep(2)
 
                     # turn left to straighten a bit
                     with socketLock:
-                        self.sock.sendall("a drive_direct(225, 100)".encode())
+                        self.sock.sendall("a drive_direct(250, 100)".encode())
                         self.sock.recv(128)
-                    sleep(2)
+                    sleep(3)
 
                     # drive forward to clear cone
                     with socketLock:
-                        self.sock.sendall("a drive_direct(100, 100)".encode())
+                        self.sock.sendall("a drive_direct(100, 150)".encode())
                         self.sock.recv(128)
                     sleep(1)
 
@@ -176,7 +176,7 @@ class StateMachine(threading.Thread):
 
                     # turn left away from cone
                     with socketLock:
-                        self.sock.sendall("a drive_direct(225, 100)".encode())
+                        self.sock.sendall("a drive_direct(250, 150)".encode())
                         self.sock.recv(128)
                     sleep(2)
 
@@ -184,11 +184,11 @@ class StateMachine(threading.Thread):
                     with socketLock:
                         self.sock.sendall("a drive_direct(100, 250)".encode())
                         self.sock.recv(128)
-                    sleep(2)
+                    sleep(3)
 
                     # drive forward to clear cone
                     with socketLock:
-                        self.sock.sendall("a drive_direct(100, 100)".encode())
+                        self.sock.sendall("a drive_direct(150, 100)".encode())
                         self.sock.recv(128)
                     sleep(2)
 
@@ -274,11 +274,9 @@ class ImageProc(threading.Thread):
         self.latestImg = []
         self.feedback = []
         self.thresholds = {'lo_hue':0,'lo_saturation':0,'lo_value':0,'hi_hue':0,'hi_saturation':0,'hi_value':0}
-        self.objCentroid = (0,0)
+    
         self.visible = False
-        self.yellowBox = None
-
-        self.greenCenter = (0,0)
+        self.redBox = None
         self.redCenter = (0,0)
 
         # hard code for yellow beach ball
@@ -289,7 +287,10 @@ class ImageProc(threading.Thread):
         self.greenCone = {'lo_hue':38,'lo_saturation':127,'lo_value':64,'hi_hue':124,'hi_saturation':208,'hi_value':111}
 
         # this mask out a red cone
-        self.redCone = {'lo_hue':0,'lo_saturation':56,'lo_value':141,'hi_hue':88,'hi_saturation':116,'hi_value':227}
+        # dim:
+        # self.redCone = {'lo_hue':0,'lo_saturation':56,'lo_value':141,'hi_hue':88,'hi_saturation':116,'hi_value':227}
+        # bright
+        self.redCone = {'lo_hue':0,'lo_saturation':92,'lo_value':208,'hi_hue':93,'hi_saturation':180,'hi_value':255}
 
         """
         self.thresholds = {'low_red':0,'high_red':0,'low_green':0,'high_green':0,'low_blue':0,'high_blue':0}
@@ -371,25 +372,25 @@ class ImageProc(threading.Thread):
         # Lab 4
 
         # cones
-        greenLo = (self.greenCone['lo_hue'], self.greenCone['lo_saturation'], self.greenCone['lo_value'])
-        greenHi = (self.greenCone['hi_hue'], self.greenCone['hi_saturation'], self.greenCone['hi_value'])
+        # greenLo = (self.greenCone['lo_hue'], self.greenCone['lo_saturation'], self.greenCone['lo_value'])
+        # greenHi = (self.greenCone['hi_hue'], self.greenCone['hi_saturation'], self.greenCone['hi_value'])
 
         redLo = (self.redCone['lo_hue'], self.redCone['lo_saturation'], self.redCone['lo_value'])
         redHi = (self.redCone['hi_hue'], self.redCone['hi_saturation'], self.redCone['hi_value'])
 
         kernel = numpy.ones((3,3), numpy.uint8)
 
-        greenMask = cv2.inRange(self.latestImg, greenLo, greenHi)
+        # greenMask = cv2.inRange(self.latestImg, greenLo, greenHi)
         redMask = cv2.inRange(self.latestImg, redLo, redHi)
 
-        greenMask = cv2.erode(greenMask, kernel, iterations=2)
-        greenMask = cv2.dilate(greenMask, kernel, iterations=4)
+        """greenMask = cv2.erode(greenMask, kernel, iterations=2)
+        greenMask = cv2.dilate(greenMask, kernel, iterations=4)"""
 
         redMask = cv2.erode(redMask, kernel, iterations=2)
         redMask = cv2.dilate(redMask, kernel, iterations=4)
 
         # beachball
-        low = (self.yellowBeachball['lo_hue'], self.yellowBeachball['lo_saturation'], self.yellowBeachball['lo_value'])
+        """low = (self.yellowBeachball['lo_hue'], self.yellowBeachball['lo_saturation'], self.yellowBeachball['lo_value'])
         high = (self.yellowBeachball['hi_hue'], self.yellowBeachball['hi_saturation'], self.yellowBeachball['hi_value'])
 
         yellowMask = cv2.inRange(self.latestImg, low, high)
@@ -398,27 +399,24 @@ class ImageProc(threading.Thread):
         kernel3 = numpy.ones((5, 5), numpy.uint8)
         yellowMask = cv2.erode(yellowMask, kernel2, iterations=2)
         yellowMask = cv2.dilate(yellowMask, kernel3, iterations=5)
-        yellowMask = cv2.erode(yellowMask, kernel3, iterations=3)  
+        yellowMask = cv2.erode(yellowMask, kernel3, iterations=3)"""  
 
 
-        theMask = cv2.bitwise_or(greenMask, redMask)
-        theMask = cv2.bitwise_or(theMask, yellowMask)
+        # theMask = cv2.bitwise_or(greenMask, redMask)
+        # theMask = cv2.bitwise_or(theMask, yellowMask)
 
-        components, labels, greenStats, centroid = cv2.connectedComponentsWithStats(greenMask, connectivity=8, ltype=cv2.CV_32S)
-        components, labels, redStats, centroid = cv2.connectedComponentsWithStats(redMask, connectivity=8, ltype=cv2.CV_32S)
-        components, labels, yellowStats, centroid = cv2.connectedComponentsWithStats(yellowMask, connectivity=8, ltype=cv2.CV_32S)
+        # components, labels, greenStats, centroid = cv2.connectedComponentsWithStats(greenMask, connectivity=8, ltype=cv2.CV_32S)
+        _,_,redStats,_ = cv2.connectedComponentsWithStats(redMask, connectivity=8, ltype=cv2.CV_32S)
+        # components, labels, yellowStats, centroid = cv2.connectedComponentsWithStats(yellowMask, connectivity=8, ltype=cv2.CV_32S)
 
-        self.greenCenter = self.findCenter(greenStats)
-        self.redCenter = self.findCenter(redStats)
+        self.redBox = self.findBoundingBox(redStats)
 
-        self.yellowBox = self.findBoundingBox(yellowStats)
-
-        if self.yellowBox is not None:
-            left, top, w, h = self.yellowBox
-            self.objCentroid = (int(left + w/2), int(top + h/2))
+        if self.redBox is not None:
+            left, top, w, h = self.redBox
+            self.redCenter = (int(left + w/2), int(top + h/2))
 
         # END TODO
-        return cv2.bitwise_and(self.latestImg, self.latestImg, mask=theMask)
+        return cv2.bitwise_and(self.latestImg, self.latestImg, mask=redMask)
     
     def drawCircle(self, statsArr):
         # extract the 4th element from each row and sort
