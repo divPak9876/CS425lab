@@ -22,17 +22,17 @@ ENABLE_ROBOT_CONNECTION = True
 
 # You should fill this in with your states
 class States(enum.Enum):
-    SEARCH = enum.auto()
+    # SEARCH = enum.auto()
     VISIBLE = enum.auto()
     TURN_L = enum.auto()
     TURN_R = enum.auto()
     FORWARD = enum.auto()
-    FAR = enum.auto()
-    MEDIUM = enum.auto()
-    CLOSE = enum.auto()
+    # FAR = enum.auto()
+    # MEDIUM = enum.auto()
+    # CLOSE = enum.auto()
 
-    FIND = enum.auto()
-    CHASE = enum.auto()
+    # FIND = enum.auto()
+    # CHASE = enum.auto()
 
 class StateMachine(threading.Thread):
 
@@ -90,208 +90,225 @@ class StateMachine(threading.Thread):
             
             
     def run(self):
+        lastTurn = 0
 
         # BEGINNING OF THE CONTROL LOOP
         while self.RUNNING:
             sleep(0.1)
-
             if self.STATE == States.FIND:
-                print("Ferb is going to find you...")
-                
-                if self.video.visible:              # found ball
-                    self.STATE = States.VISIBLE
+                print("where cone")
 
-                else:                               # ball is not seen
-                    with socketLock:
-                        self.sock.sendall("a spin_left(50)".encode())
-                        self.sock.recv(128)
-            # elif self.STATE == States.CHASE:
-            #     print("Ferb has found you, run.")
-                
-            #     if self.video.visible == False:
-            #         self.STATE = States.VISIBLE
-
-            #     speed = 0
-
-            #     speed = None # put equation here that weighs objects in vision!!!
-            
-            #Start
-            elif self.STATE == States.CHASE:
-                print("Ferb: Chasing the beach ball while navigating between cones!")
-
-                # --- Check visibility ---
-                if not self.video.visible:
-                    print("Ferb lost the ball! Searching again...")
-                    self.STATE = States.SEARCH
-                    continue
-
-                # --- Extract object positions ---
-                ball_x, ball_y = self.video.objCentroid if self.video.objCentroid else (0, 0)
-                green_x, _ = self.video.greenCenter if self.video.greenCenter else (0, 0)
-                red_x, _ = self.video.redCenter if self.video.redCenter else (0, 0)
-                screen_center = self.screenW / 2
-
-                # --- Determine lane center (from cones) ---
-                if green_x > 0 and red_x > 0:
-                    lane_center = (green_x + red_x) / 2
-                else:
-                    lane_center = screen_center  # if one cone missing, drive straight
-
-                # --- Combine both influences (ball + lane) ---
-                # Give more weight to the ball, but still align with cones
-                if ball_x > 0:
-                    target_x = (0.7 * ball_x) + (0.3 * lane_center)
-                else:
-                    target_x = lane_center
-
-                # --- Compute steering adjustment ---
-                error = target_x - screen_center   # positive = ball is to the right
-                steering = int(error * 0.5)        # proportional control (gain = 0.5)
-                steering = max(min(steering, 100), -100)  # clamp to safe range
-
-                # --- Forward speed adjustment based on distance ---
-                if ball_y < self.topScreen:
-                    forward_speed = 80   # close → slow down
-                elif ball_y > self.bottomScreen:
-                    forward_speed = 180  # far → speed up
-                else:
-                    forward_speed = 130  # medium distance
-
-                # --- Cone avoidance boost ---
-                # If too close to a cone, bias steering away
-                cone_push = 40
-                if green_x > 0 and ball_x < green_x + 60:
-                    print("Ferb: Too close to left (green) cone → steering right!")
-                    steering += cone_push
-                if red_x > 0 and ball_x > red_x - 60:
-                    print("Ferb: Too close to right (red) cone → steering left!")
-                    steering -= cone_push
-
-                # Clamp again after adjustments
-                steering = max(min(steering, 100), -100)
-
-                # --- Send drive command ---
-                command = f"a drive({forward_speed},{-steering})"
-                with socketLock:
-                    self.sock.sendall(command.encode())
-                    self.sock.recv(128)
-
-                # Debug info
-                print(f"Ball at x={ball_x}, Green={green_x}, Red={red_x}, "
-                    f"Steering={steering}, Speed={forward_speed}")
-
-            #finish
-
-
-
-            # starting state to look for yellow beach ball
-            if self.STATE == States.SEARCH:
-                print("Ferb: SEARCHING")
-                
-                if self.video.visible:              # found ball
-                    self.STATE = States.VISIBLE
-
-                else:                               # ball is not seen
-                    with socketLock:
-                        self.sock.sendall("a spin_left(50)".encode())
-                        self.sock.recv(128)
-
-            # state to decide next state
-            elif self.STATE == States.VISIBLE:
-                with socketLock:                                    # stop robot
-                    self.sock.sendall("a drive_straight(0)".encode())
-                    self.sock.recv(128)
-
-                if self.video.objCentroid[0] < self.leftScreen:           # left sixth of screen
+                if self.video.visible and lastTurn == 0:
+                    print("found cone")
                     self.STATE = States.TURN_L
-                    print("Ferb: LEFT!!!")
-
-                elif self.video.objCentroid[0] > self.rightScreen:     # right sixth of screen
+                elif self.video.visible and lastTurn == 1:
+                    print("found cone")
                     self.STATE = States.TURN_R
-                    print("Ferb: RIGHT!!!")
-
-                elif self.video.visible:                            # drive forward
-                    self.STATE = States.FORWARD
-                    print("Ferb: FORWARD!!!")
-
-                else:                                               # no ball; search
-                    self.STATE = States.SEARCH
-
             
             elif self.STATE == States.TURN_L:
+                print("bloop")
+
                 
-                with socketLock:
-                    self.sock.sendall("a spin_left(50)".encode())
-                    self.sock.recv(128)
 
-                # check if state should be changed
-                if self.video.visible != True:
-                    self.STATE = States.SEARCH
-
-                elif self.video.objCentroid[0] > self.leftScreen:
-                    self.STATE = States.VISIBLE
 
             elif self.STATE == States.TURN_R:
+                print("bloop")
 
-                with socketLock:
-                    self.sock.sendall("a spin_right(50)".encode())
-                    self.sock.recv(128)
 
-                # check if state should be changed
-                if self.video.visible != True:
-                    self.STATE = States.SEARCH
 
-                elif self.video.objCentroid[0] < self.rightScreen:
-                    self.STATE = States.VISIBLE
+            # if self.STATE == States.FIND:
+            #     print("Ferb is going to find you...")
+                
+            #     if self.video.visible:              # found ball
+            #         self.STATE = States.VISIBLE
+
+            #     else:                               # ball is not seen
+            #         with socketLock:
+            #             self.sock.sendall("a spin_left(50)".encode())
+            #             self.sock.recv(128)
+            # # elif self.STATE == States.CHASE:
+            # #     print("Ferb has found you, run.")
+                
+            # #     if self.video.visible == False:
+            # #         self.STATE = States.VISIBLE
+
+            # #     speed = 0
+
+            # #     speed = None # put equation here that weighs objects in vision!!!
             
-            elif self.STATE == States.FORWARD:
+            # #Start
+            # elif self.STATE == States.CHASE:
+            #     print("Ferb: Chasing the beach ball while navigating between cones!")
+
+            #     # --- Check visibility ---
+            #     if not self.video.visible:
+            #         print("Ferb lost the ball! Searching again...")
+            #         self.STATE = States.SEARCH
+            #         continue
+
+            #     # --- Extract object positions ---
+            #     ball_x, ball_y = self.video.objCentroid if self.video.objCentroid else (0, 0)
+            #     green_x, _ = self.video.greenCenter if self.video.greenCenter else (0, 0)
+            #     red_x, _ = self.video.redCenter if self.video.redCenter else (0, 0)
+            #     screen_center = self.screenW / 2
+
+            #     # --- Determine lane center (from cones) ---
+            #     if green_x > 0 and red_x > 0:
+            #         lane_center = (green_x + red_x) / 2
+            #     else:
+            #         lane_center = screen_center  # if one cone missing, drive straight
+
+            #     # --- Combine both influences (ball + lane) ---
+            #     # Give more weight to the ball, but still align with cones
+            #     if ball_x > 0:
+            #         target_x = (0.7 * ball_x) + (0.3 * lane_center)
+            #     else:
+            #         target_x = lane_center
+
+            #     # --- Compute steering adjustment ---
+            #     error = target_x - screen_center   # positive = ball is to the right
+            #     steering = int(error * 0.5)        # proportional control (gain = 0.5)
+            #     steering = max(min(steering, 100), -100)  # clamp to safe range
+
+            #     # --- Forward speed adjustment based on distance ---
+            #     if ball_y < self.topScreen:
+            #         forward_speed = 80   # close → slow down
+            #     elif ball_y > self.bottomScreen:
+            #         forward_speed = 180  # far → speed up
+            #     else:
+            #         forward_speed = 130  # medium distance
+
+            #     # --- Cone avoidance boost ---
+            #     # If too close to a cone, bias steering away
+            #     cone_push = 40
+            #     if green_x > 0 and ball_x < green_x + 60:
+            #         print("Ferb: Too close to left (green) cone → steering right!")
+            #         steering += cone_push
+            #     if red_x > 0 and ball_x > red_x - 60:
+            #         print("Ferb: Too close to right (red) cone → steering left!")
+            #         steering -= cone_push
+
+            #     # Clamp again after adjustments
+            #     steering = max(min(steering, 100), -100)
+
+            #     # --- Send drive command ---
+            #     command = f"a drive({forward_speed},{-steering})"
+            #     with socketLock:
+            #         self.sock.sendall(command.encode())
+            #         self.sock.recv(128)
+
+            #     # Debug info
+            #     print(f"Ball at x={ball_x}, Green={green_x}, Red={red_x}, "
+            #         f"Steering={steering}, Speed={forward_speed}")
+
+            # #finish
+
+            # # starting state to look for yellow beach ball
+            # if self.STATE == States.SEARCH:
+            #     print("Ferb: SEARCHING")
                 
-                # check which forward state
-                if self.video.visible != True:
-                    self.STATE = States.SEARCH
+            #     if self.video.visible:              # found ball
+            #         self.STATE = States.VISIBLE
 
-                elif self.video.objCentroid[0] < self.leftScreen or self.video.objCentroid[0] > self.rightScreen:
-                    self.STATE = States.VISIBLE
+            #     else:                               # ball is not seen
+            #         with socketLock:
+            #             self.sock.sendall("a spin_left(50)".encode())
+            #             self.sock.recv(128)
 
-                elif self.video.objCentroid[1] < self.topScreen:
-                    self.STATE = States.CLOSE
-                    print("Ferb: CLOSE!!!")
+            # # state to decide next state
+            # elif self.STATE == States.VISIBLE:
+            #     with socketLock:                                    # stop robot
+            #         self.sock.sendall("a drive_straight(0)".encode())
+            #         self.sock.recv(128)
 
-                elif self.video.objCentroid[1] > self.bottomScreen:
-                    self.STATE = States.FAR
-                    print("Ferb: FAR!!!")
+            #     if self.video.objCentroid[0] < self.leftScreen:           # left sixth of screen
+            #         self.STATE = States.TURN_L
+            #         print("Ferb: LEFT!!!")
 
-                else:
-                    self.STATE = States.MEDIUM
-                    print("Ferb: MEDIUM!!!")
+            #     elif self.video.objCentroid[0] > self.rightScreen:     # right sixth of screen
+            #         self.STATE = States.TURN_R
+            #         print("Ferb: RIGHT!!!")
+
+            #     elif self.video.visible:                            # drive forward
+            #         self.STATE = States.FORWARD
+            #         print("Ferb: FORWARD!!!")
+
+            #     else:                                               # no ball; search
+            #         self.STATE = States.SEARCH
+
+            
+            # elif self.STATE == States.TURN_L:
+                
+            #     with socketLock:
+            #         self.sock.sendall("a spin_left(50)".encode())
+            #         self.sock.recv(128)
+
+            #     # check if state should be changed
+            #     if self.video.visible != True:
+            #         self.STATE = States.SEARCH
+
+            #     elif self.video.objCentroid[0] > self.leftScreen:
+            #         self.STATE = States.VISIBLE
+
+            # elif self.STATE == States.TURN_R:
+
+            #     with socketLock:
+            #         self.sock.sendall("a spin_right(50)".encode())
+            #         self.sock.recv(128)
+
+            #     # check if state should be changed
+            #     if self.video.visible != True:
+            #         self.STATE = States.SEARCH
+
+            #     elif self.video.objCentroid[0] < self.rightScreen:
+            #         self.STATE = States.VISIBLE
+            
+            # elif self.STATE == States.FORWARD:
+                
+            #     # check which forward state
+            #     if self.video.visible != True:
+            #         self.STATE = States.SEARCH
+
+            #     elif self.video.objCentroid[0] < self.leftScreen or self.video.objCentroid[0] > self.rightScreen:
+            #         self.STATE = States.VISIBLE
+
+            #     elif self.video.objCentroid[1] < self.topScreen:
+            #         self.STATE = States.CLOSE
+            #         print("Ferb: CLOSE!!!")
+
+            #     elif self.video.objCentroid[1] > self.bottomScreen:
+            #         self.STATE = States.FAR
+            #         print("Ferb: FAR!!!")
+
+            #     else:
+            #         self.STATE = States.MEDIUM
+            #         print("Ferb: MEDIUM!!!")
 
                 
-            # forward states
-            if self.STATE == States.MEDIUM:
+            # # forward states
+            # if self.STATE == States.MEDIUM:
 
-                with socketLock:
-                    self.sock.sendall("a drive_straight(100)".encode())
-                    self.sock.recv(128)
+            #     with socketLock:
+            #         self.sock.sendall("a drive_straight(100)".encode())
+            #         self.sock.recv(128)
 
-                self.STATE = States.FORWARD
+            #     self.STATE = States.FORWARD
 
-            elif self.STATE == States.FAR:
+            # elif self.STATE == States.FAR:
 
-                with socketLock:
-                    self.sock.sendall("a drive_straight(150)".encode())
-                    self.sock.recv(128)
+            #     with socketLock:
+            #         self.sock.sendall("a drive_straight(150)".encode())
+            #         self.sock.recv(128)
 
-                self.STATE = States.FORWARD
+            #     self.STATE = States.FORWARD
 
-            elif self.STATE == States.CLOSE:
+            # elif self.STATE == States.CLOSE:
                 
-                with socketLock:
-                    self.sock.sendall("a drive_straight(50)".encode())
-                    self.sock.recv(128)
+            #     with socketLock:
+            #         self.sock.sendall("a drive_straight(50)".encode())
+            #         self.sock.recv(128)
 
-                self.STATE = States.FORWARD
-
-            # TODO: Work here
+            #     self.STATE = States.FORWARD
 
 
         # END OF CONTROL LOOP
