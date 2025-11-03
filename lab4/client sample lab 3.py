@@ -24,8 +24,7 @@ ENABLE_ROBOT_CONNECTION = True
 class States(enum.Enum):
     SEARCH = enum.auto()
     APPROACH = enum.auto()
-    PASS_LEFT = enum.auto()
-    PASS_RIGHT = enum.auto()
+    PASS_CONE = enum.auto()
 
 class StateMachine(threading.Thread):
 
@@ -48,6 +47,7 @@ class StateMachine(threading.Thread):
         self.screenW = 320
         self.screenH = 240
         self.center_x = self.screenW / 2
+        self.center_y = self.screenH / 2
 
         self.turnLeft = True       # begin by zagging (left)
         self.lastSeen = False      # seen yellow cone
@@ -96,6 +96,7 @@ class StateMachine(threading.Thread):
 
             # search
             if self.STATE == States.SEARCH:
+
                 print("SEARCHING for yellow cone...")
                 if coneVisible:
                     print("Cone found, switching to APPROACH")
@@ -103,72 +104,98 @@ class StateMachine(threading.Thread):
 
                 else:
                     # spin in place until cone is found
+                    cmd = f"a spin_right(75)" if self.turnLeft else f"a spin_left(75)"
+
                     with socketLock:
-                        self.sock.sendall("a spin_left(25)".encode())
+                        self.sock.sendall(cmd.encode())
                         self.sock.recv(128)
 
             # approach
             elif self.STATE == States.APPROACH:
-                """if not coneVisible:
-                    # lost sight (assume cone passed)
-                    print("Lost cone — passing around it")
-                    passStartTime = time()
-                    self.STATE = States.PASS_LEFT if self.turnLeft else States.PASS_RIGHT
+                
+                if self.video.yellowBox == None:
+                    self.STATE = States.SEARCH
                     continue
 
-                # determines where to aim
-                x = coneCenter[0]
-                target = (self.center_x + 30) if self.turnLeft else (self.center_x - 30)  # left or right target
-                error = x - target
+                x, y = coneCenter
+                cone_x, cone_y, cone_w, cone_h = self.video.yellowBox  # width & height of cone
+                print(cone_w, ", ", cone_h)
 
-                forward_speed = 120
-                turn_correction = int(max(min(error * 0.25, 80), -80))  # proportional turn
+                # check if cone is within range
+                if cone_w > 60:                     # in range
+                    self.STATE = States.PASS_CONE
 
-                # Convert forward + turn into left/right wheel speeds
-                left_speed = forward_speed - turn_correction
-                right_speed = forward_speed + turn_correction
+                else:                               # not in range
+                    # make cone center
+                    error = x - self.center_x
+                    Kp = 0.6
+                    turn_correction = int(max(min(error * Kp, 150), -150))
 
-                cmd = f"a drive_direct({right_speed},{left_speed})"
-                with socketLock:
-                    self.sock.sendall(cmd.encode())
-                    self.sock.recv(128)"""
-                
-                x = coneCenter[0]
+                    forward_speed = 100
+                    left_speed = max(min(forward_speed - turn_correction, 200), -200)
+                    right_speed = max(min(forward_speed + turn_correction, 200), -200)
 
-                # Choose which side of the cone to pass on
-                target = (self.center_x + 80) if self.turnLeft else (self.center_x - 80)  # increase offset for stronger side bias
+                    # Send drive command
+                    cmd = f"a drive_direct({left_speed},{right_speed})"
 
-                # Calculate steering error (cone offset from target)
-                error = x - target
+                    with socketLock:
+                        self.sock.sendall(cmd.encode())
+                        self.sock.recv(128)
+            
+            # navigate around cone
+            elif self.STATE == States.PASS_CONE:
 
-                # Base forward speed
-                forward_speed = 60
+                if self.turnLeft:   # pass on left
+                    print("Passing cone on left")
 
-                # Stronger steering gain
-                Kp = 1.0  # proportional gain (try 0.5–1.0 range)
-                turn_correction = int(max(min(error * Kp, 150), -150))
+                    # turn right away from cone
+                    with socketLock:
+                        self.sock.sendall("a drive_direct(100, 250)".encode())
+                        self.sock.recv(128)
+                    sleep(2)
 
-                # Convert to left/right wheel speeds
-                left_speed = forward_speed - turn_correction
-                right_speed = forward_speed + turn_correction
+                    # turn left to straighten a bit
+                    with socketLock:
+                        self.sock.sendall("a drive_direct(225, 100)".encode())
+                        self.sock.recv(128)
+                    sleep(2)
 
-                # Clamp wheel speeds to reasonable values
-                left_speed = max(min(left_speed, 200), -200)
-                right_speed = max(min(right_speed, 200), -200)
+                    # drive forward to clear cone
+                    with socketLock:
+                        self.sock.sendall("a drive_direct(100, 100)".encode())
+                        self.sock.recv(128)
+                    sleep(1)
 
-                cmd = f"a drive_direct({left_speed},{right_speed})"
+                    # Update state for next cone
+                    print("Finished passing cone on left, switching to SEARCH")
+                    self.STATE = States.SEARCH
+                    self.turnLeft = False   # choose right for next cone
 
-                with socketLock:
-                    self.sock.sendall(cmd.encode())
-                    self.sock.recv(128)
+                else:  # pass on right
+                    print("Passing cone on right")
 
-                # === Zig-zag switching logic ===
-                # Flip side once cone passes the center
-                if self.turnLeft and x < self.center_x - 20:  # small hysteresis band
-                    self.turnLeft = False
-                elif not self.turnLeft and x > self.center_x + 20:
-                    self.turnLeft = True
-                
+                    # turn left away from cone
+                    with socketLock:
+                        self.sock.sendall("a drive_direct(225, 100)".encode())
+                        self.sock.recv(128)
+                    sleep(2)
+
+                    # turn right to straighten a bit
+                    with socketLock:
+                        self.sock.sendall("a drive_direct(100, 250)".encode())
+                        self.sock.recv(128)
+                    sleep(2)
+
+                    # drive forward to clear cone
+                    with socketLock:
+                        self.sock.sendall("a drive_direct(100, 100)".encode())
+                        self.sock.recv(128)
+                    sleep(2)
+
+                    # Update state
+                    print("Finished passing cone on right, switching to SEARCH")
+                    self.STATE = States.SEARCH
+                    self.turnLeft = True   # choose left for next cone
 
 
         # END OF CONTROL LOOP
@@ -249,6 +276,7 @@ class ImageProc(threading.Thread):
         self.thresholds = {'lo_hue':0,'lo_saturation':0,'lo_value':0,'hi_hue':0,'hi_saturation':0,'hi_value':0}
         self.objCentroid = (0,0)
         self.visible = False
+        self.yellowBox = None
 
         self.greenCenter = (0,0)
         self.redCenter = (0,0)
@@ -368,9 +396,9 @@ class ImageProc(threading.Thread):
 
         kernel2 = numpy.ones((3, 3), numpy.uint8)
         kernel3 = numpy.ones((5, 5), numpy.uint8)
-        yellowMask = cv2.erode(yellowMask, kernel2, iterations=4)
+        yellowMask = cv2.erode(yellowMask, kernel2, iterations=2)
         yellowMask = cv2.dilate(yellowMask, kernel3, iterations=5)
-        yellowMask = cv2.erode(yellowMask, kernel3, iterations=4)  
+        yellowMask = cv2.erode(yellowMask, kernel3, iterations=3)  
 
 
         theMask = cv2.bitwise_or(greenMask, redMask)
@@ -382,7 +410,12 @@ class ImageProc(threading.Thread):
 
         self.greenCenter = self.findCenter(greenStats)
         self.redCenter = self.findCenter(redStats)
-        self.objCentroid = self.findCenter(yellowStats)
+
+        self.yellowBox = self.findBoundingBox(yellowStats)
+
+        if self.yellowBox is not None:
+            left, top, w, h = self.yellowBox
+            self.objCentroid = (int(left + w/2), int(top + h/2))
 
         # END TODO
         return cv2.bitwise_and(self.latestImg, self.latestImg, mask=theMask)
@@ -413,7 +446,7 @@ class ImageProc(threading.Thread):
     
     def findCenter(self, statsArr):
         # extract the 4th element from each row and sort
-        pxCount = [row[3] for row in statsArr]
+        pxCount = [row[4] for row in statsArr]
         pxSorted = sorted(pxCount, reverse=True)
 
         if len(pxSorted) < 2:
@@ -440,6 +473,41 @@ class ImageProc(threading.Thread):
         # find center
         return (int(statsArr[idx][cv2.CC_STAT_LEFT] + statsArr[idx][cv2.CC_STAT_WIDTH] / 2),
                     int(statsArr[idx][cv2.CC_STAT_TOP] + statsArr[idx][cv2.CC_STAT_HEIGHT] / 2))
+
+    
+    def findBoundingBox(self, statsArr):
+        # extract area from each row (usually row[4])
+        areas = [row[4] for row in statsArr]
+        areasSorted = sorted(areas, reverse=True)
+
+        if len(areasSorted) < 2:
+            self.visible = False
+            return None  # no object
+
+        targetArea = areasSorted[1]  # second largest object
+
+        # find the index of the target object
+        objIndx = [i for i, row in enumerate(statsArr) if row[4] == targetArea]
+        if not objIndx:
+            self.visible = False
+            return None
+
+        idx = objIndx[0]
+
+        # bounding box
+        left = statsArr[idx][cv2.CC_STAT_LEFT]
+        top = statsArr[idx][cv2.CC_STAT_TOP]
+        width = statsArr[idx][cv2.CC_STAT_WIDTH]
+        height = statsArr[idx][cv2.CC_STAT_HEIGHT]
+
+        self.visible = True
+
+        # optional: draw rectangle on image
+        self.latestImg = cv2.rectangle(self.latestImg, (left, top), (left + width, top + height), (0, 255, 255), 2)
+
+        # return bounding box
+        return (left, top, width, height)
+
 
 
 # END OF IMAGEPROC
