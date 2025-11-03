@@ -97,54 +97,57 @@ class StateMachine(threading.Thread):
             sleep(0.1)
             if self.STATE == States.FIND:
                 print("where cone")
-
-                if self.video.visible and lastTurn == 0:
-                    print("found cone")
-                    self.STATE = States.TURN_L
-                elif self.video.visible and lastTurn == 1:
-                    print("found cone")
-                    self.STATE = States.TURN_R
+                with socketLock:
+                    self.sock.sendall("a spin_right(50)".encode())
+                    self.sock.recv(128)
+                    
+                    if self.video.visible and lastTurn == 0:    #turn left
+                        print("found cone")
+                        self.STATE = States.TURN_L
+                    elif self.video.visible and lastTurn == 1: #turn right
+                        print("found cone")
+                        self.STATE = States.TURN_R
             
             elif self.STATE == States.TURN_L:
-                print("bloop")
-
-                
-
+                print("fig 8 LEFT")
+                with socketLock:
+                    self.sock.sendall("a drive_straight(50)".encode())
+                    self.sock.recv(128)
+                    if self.video.objCentroid[0] < self.leftScreen:
+                        print("left")
+                        self.sock.sendall("a spin_left(50)".encode())
+                        self.sock.recv(128)
+                    elif self.video.objCentroid[0] > self.leftScreen:
+                        print("right")
+                        self.sock.sendall("a spin_right(50)".encode())
+                    if not self.video.visible: #TODO: sees second large object
+                        self.STATE == States.FORWARD
+                        lastTurn = 1
 
             elif self.STATE == States.TURN_R:
-                print("bloop")
+                print("fig 8 RIGHT")
+                with socketLock:
+                    self.sock.sendall("a drive_straight(50)".encode())
+                    self.sock.recv(128)
+                    if self.video.objCentroid[0] < self.rightScreen:
+                        self.sock.sendall("a spin_right(50)".encode())
+                        self.sock.recv(128)
+                    elif self.video.objCentroid[0] > self.rightScreen:
+                        self.sock.sendall("a spin_left(50)".encode())
+                        self.sock.recv(128)
+                    if not self.video.visible:
+                        self.STATE == States.FORWARD
+                        lastTurn = 0
 
-
-
-            # if self.STATE == States.FIND:
-            #     print("Ferb is going to find you...")
-                
-            #     if self.video.visible:              # found ball
-            #         self.STATE = States.VISIBLE
-
-            #     else:                               # ball is not seen
-            #         with socketLock:
-            #             self.sock.sendall("a spin_left(50)".encode())
-            #             self.sock.recv(128)
-            # # elif self.STATE == States.CHASE:
-            # #     print("Ferb has found you, run.")
-                
-            # #     if self.video.visible == False:
-            # #         self.STATE = States.VISIBLE
-
-            # #     speed = 0
-
-            # #     speed = None # put equation here that weighs objects in vision!!!
-            
-            # #Start
-            # elif self.STATE == States.CHASE:
-            #     print("Ferb: Chasing the beach ball while navigating between cones!")
-
-            #     # --- Check visibility ---
-            #     if not self.video.visible:
-            #         print("Ferb lost the ball! Searching again...")
-            #         self.STATE = States.SEARCH
-            #         continue
+            elif self.STATE == States.FORWARD:
+                with socketLock:
+                        self.sock.sendall("a drive_straight(50)".encode())
+                        self.sock.recv(128)
+                        sleep(1)
+                        if lastTurn == 0:
+                            self.STATE = States.TURN_L
+                        elif lastTurn == 1:
+                            self.STATE = States.TURN_R
 
             #     # --- Extract object positions ---
             #     ball_x, ball_y = self.video.objCentroid if self.video.objCentroid else (0, 0)
