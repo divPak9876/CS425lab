@@ -120,7 +120,7 @@ class StateMachine(threading.Thread):
                     elif self.video.objCentroid[0] > self.leftScreen:
                         print("right")
                         self.sock.sendall("a spin_right(50)".encode())
-                    if not self.video.visible: #TODO: sees second large object
+                    if not self.video.visible: #TODO: sees second large object - use find center stuff
                         self.STATE == States.FORWARD
                         lastTurn = 1
 
