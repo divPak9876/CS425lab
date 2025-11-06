@@ -14,21 +14,23 @@ socketLock = threading.Lock()
 
 # You should fill this in with your states
 class States(enum.Enum):
+    READY = enum.auto()
     DRIVE = enum.auto()
-    TURN_L = enum.auto()
-    TURN_R = enum.auto()
 
 # Not a thread because this is the main thread which can be important for GUI access
 class StateMachine():
 
     def __init__(self):
         # CONFIGURATION PARAMETERS
-        self.IP_ADDRESS = "192.168.1.102" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
+        self.IP_ADDRESS = "192.168.1.105" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
         self.CONTROLLER_PORT = 5001
         self.TIMEOUT = 10					# If its unable to connect after 10 seconds, give up.  Want this to be a while so robot can init.
-        self.STATE = States.DRIVE
+        self.STATE = States.READY
         self.RUNNING = True
         self.DIST = False
+        self.cmd1 = f"a drive_straight(100)"
+        self.cmd2 = f"a drive_straight(0)"
+        self.distance = 0
         
         # connect to the motorcontroller
         try:
@@ -63,50 +65,31 @@ class StateMachine():
         while(self.RUNNING):
             sleep(0.1)
 
-            if self.STATE == States.DRIVE:
-                if self.sensors.frontLeftIR < 2600: 
-                    self.STATE = States.TURN_L
-                    print("LEFT")
-
-                elif self.sensors.frontRightIR < 2600:
-                    self.STATE = States.TURN_R
-                    print("RIGHT")
+            # ready to drive
+            if self.STATE == States.READY:
+                if self.DIST:
+                    self.STATE = States.DRIVE
+                    self.sensors.distance = 0
                 
-                else:
-                    with socketLock:
-                        self.sock.sendall("a drive_straight(50)".encode())
-                        self.sock.recv(128)
-            
-            elif self.STATE == States.TURN_L:
+
+            elif self.STATE == States.DRIVE:
                 with socketLock:
-                    self.sock.sendall("a drive_direct(75, -75)".encode())
+                    self.sock.sendall(self.cmd1.encode())
                     self.sock.recv(128)
+                
+                sleep(2)
 
-                if self.sensors.frontLeftIR > 2200:
-                    self.STATE = States.DRIVE
-
-            elif self.STATE == States.TURN_R:
                 with socketLock:
-                    self.sock.sendall("a drive_direct(-75, 75)".encode())
+                    self.sock.sendall("a _get_distance_std".encode())
+                    print(self.sock.recv(128), " mm")
+
+                with socketLock:
+                    self.sock.sendall(self.cmd2.encode())
                     self.sock.recv(128)
-
-                if self.sensors.frontRightIR > 2200:
-                    self.STATE = States.DRIVE
-
-                """
-                if self.sensors.frontLeftIR < 2000:
-                    print("Line detected on front-right IR:", self.sensors.frontLeftIR)
-
-                    # Load a one-note song
-                    self.sock.sendall("a set_song(1, [[60,32]])".encode())
-                    _ = self.sock.recv(128) 
-
-                    # Play the song
-                    self.sock.sendall("a play_song(1)".encode())
-                    _ = self.sock.recv(128)  
-                    print("Played one note (Middle C)")
-                    sleep(1)
-                """
+                
+                # go back to readyd
+                self.DIST = False
+                self.STATE = States.READY
             
 
         # END OF CONTROL LOOP
@@ -151,61 +134,13 @@ class Sensing(threading.Thread):
         threading.Thread.__init__(self)   # MUST call this to make sure we setup the thread correctly
         self.sock = socket
         self.RUNNING = True
-        self.frontLeftIR = 3000
-        self.frontRightIR = 3000
+        self.distance = 0
     
     def run(self):
-        while self.RUNNING:
-            # sleep(1)
-            # This is where I would get a sensor update
-            # Store it in this class
-            # You can change the polling frequency to optimize performance, don't forget to use socketLock
-
-            """
-            with socketLock:
-                # left IR
-                self.sock.sendall("a cliff_left_signal".encode())
-                self.leftIR = int(self.sock.recv(128).decode())
-                # print("Left IR sensor value: ", self.leftIR)
-            sleep(0.1)
-            """
-
-            with socketLock:
-                # left front IR
-                self.sock.sendall("a cliff_front_left_signal".encode())
-                try:   
-                    self.frontLeftIR = int(self.sock.recv(128).decode())
-                except:
-                    print("doh!")
-                # print("Front left IR sensor value: ", self.frontLeftIR)
-            sleep(0.05)
-
-            """
-            with socketLock:
-                # right IR
-                self.sock.sendall("a cliff_right_signal".encode())
-                self.rightIR = int(self.sock.recv(128).decode())
-                # print("Right IR sensor value: ", self.rightIR)
-            sleep(0.1)
-            """
-
-            with socketLock:  
-                # right front IR
-                self.sock.sendall("a cliff_front_right_signal".encode())
-                try:
-                    self.frontRightIR = int(self.sock.recv(128).decode())
-                except:
-                    print("doh!")
-                # print("Front right IR sensor value: ", self.frontRightIR)
-            sleep(0.05)         
-
-            """
-            with socketLock:
-                self.sock.sendall("a battery_charge".encode())
-                print("Battery charge: ", self.sock.recv(128).decode())
-            """
-
-                   
+        pass
+        """with socketLock:
+            self.sock.sendall("a distance()".encode())
+            self.distance = self.sock.recv(128)"""
 
 # END OF SENSING
 
