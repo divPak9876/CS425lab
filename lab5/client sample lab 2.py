@@ -28,7 +28,7 @@ class StateMachine():
         self.STATE = States.READY
         self.RUNNING = True
         self.DIST = False
-        self.cmd1 = f"a drive_straight(100)"
+        self.cmd1 = f"a drive_straight(50)"
         self.cmd2 = f"a drive_straight(0)"
         self.distance = 0
         
@@ -74,18 +74,28 @@ class StateMachine():
 
             elif self.STATE == States.DRIVE:
                 with socketLock:
+                    self.sock.sendall("a distance".encode())
+                    #print(self.sock.recv(128).decode())
+                    start = self.sock.recv(128).decode()
+                    print(start)
+
                     self.sock.sendall(self.cmd1.encode())
                     self.sock.recv(128)
                 
                 sleep(2)
 
                 with socketLock:
-                    self.sock.sendall("a _get_distance_std".encode())
-                    print(self.sock.recv(128), " mm")
-
-                with socketLock:
                     self.sock.sendall(self.cmd2.encode())
                     self.sock.recv(128)
+
+                    self.sock.sendall("a distance".encode())
+                    #print(self.sock.recv(128).decode())
+                    end = self.sock.recv(128).decode()
+                    print(end)
+
+                distance = float(end) - float(start)
+                print(distance, "mm")
+                    
                 
                 # go back to readyd
                 self.DIST = False
