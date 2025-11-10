@@ -28,7 +28,7 @@ class StateMachine():
         self.STATE = States.READY
         self.RUNNING = True
         self.DIST = False
-        self.cmd1 = f"a drive_straight(50)"
+        self.cmd1 = f"a drive_straight(100)"
         self.cmd2 = f"a drive_straight(0)"
         self.distance = 0
         
@@ -75,26 +75,37 @@ class StateMachine():
             elif self.STATE == States.DRIVE:
                 with socketLock:
                     self.sock.sendall("a distance".encode())
-                    #print(self.sock.recv(128).decode())
+                    sleep(0.1)
                     start = self.sock.recv(128).decode()
+
+                    self.sock.sendall("a angle".encode())
+                    sleep(0.1)
+                    start_theta = self.sock.recv(128).decode()
+
                     print(start)
 
                     self.sock.sendall(self.cmd1.encode())
                     self.sock.recv(128)
                 
-                sleep(2)
+                sleep(8)
 
                 with socketLock:
                     self.sock.sendall(self.cmd2.encode())
                     self.sock.recv(128)
 
                     self.sock.sendall("a distance".encode())
-                    #print(self.sock.recv(128).decode())
+                    sleep(0.1)
                     end = self.sock.recv(128).decode()
+
+                    self.sock.sendall("a angle".encode())
+                    sleep(0.1)
+                    end_theta = self.sock.recv(128).decode()
                     print(end)
 
                 distance = float(end) - float(start)
+                angle = float(end_theta) - float(start_theta)
                 print(distance, "mm")
+                print(angle, " degrees")
                     
                 
                 # go back to readyd
