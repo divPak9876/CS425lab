@@ -203,5 +203,3 @@ if __name__ == "__main__":
 
     sleep(1)
 
-    #sm.join()
-
