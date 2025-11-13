@@ -16,7 +16,7 @@ import copy
 socketLock = threading.Lock()
 imageLock = threading.Lock()
 
-IP_ADDRESS = "192.168.1.10X" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
+IP_ADDRESS = "192.168.1.105" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
 RESIZE_SCALE = 4 # try a larger value if your computer is running slow.
 ENABLE_ROBOT_CONNECTION = False
 
@@ -198,13 +198,8 @@ class ImageProc(threading.Thread):
         if event == cv2.EVENT_LBUTTONDOWN:
             self.goal = (x, y)
             print("New goal:", self.goal)
-            cv2.circle(self.frame, (x, y), 5, (0, 255, 0), -1)
+            cv2.circle(self.latestImg, (x, y), 5, (0, 255, 0), -1)
 
-            masked = self.doImgProc() #pass by reference for all non-primitve types in Python
-
-            # after image processing you can update here to see the new version
-            with imageLock:
-                self.feedback = copy.deepcopy(masked)
             
     def setThresh(self, name, value):
         self.thresholds[name] = value
