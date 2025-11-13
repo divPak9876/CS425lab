@@ -228,15 +228,6 @@ class ImageProc(threading.Thread):
 
 if __name__ == "__main__":
     
-<<<<<<< HEAD
-    sm = StateMachine()
-    sm.start()
-    cv2.namedWindow("Create View", flags=cv2.WINDOW_AUTOSIZE)
-    cv2.moveWindow("Create View", 21, 21)
-    cv2.setMouseCallback("Create View", sm.video.click, sm.video)
-    
-    while len(sm.video.latestImg) == 0:
-=======
     cv2.namedWindow("Create View", flags=cv2.WINDOW_AUTOSIZE)
     cv2.moveWindow("Create View", 21, 21)
     
@@ -247,7 +238,6 @@ if __name__ == "__main__":
     sm.start()
 
     while len(sm.video.latestImg) == 0 or len(sm.video.feedback) == 0:
->>>>>>> c1a5b023a78c8479f1f36435a090d3150c524008
         sleep(1)
 
     while(sm.RUNNING):
