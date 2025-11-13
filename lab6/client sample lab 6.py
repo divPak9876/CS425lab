@@ -17,7 +17,7 @@ socketLock = threading.Lock()
 imageLock = threading.Lock()
 
 IP_ADDRESS = "192.168.1.105" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
-RESIZE_SCALE = 4 # try a larger value if your computer is running slow.
+RESIZE_SCALE = 2 # try a larger value if your computer is running slow.
 ENABLE_ROBOT_CONNECTION = False
 
 # You should fill this in with your states
@@ -198,7 +198,8 @@ class ImageProc(threading.Thread):
         if event == cv2.EVENT_LBUTTONDOWN:
             self.goal = (x, y)
             print("New goal:", self.goal)
-            cv2.circle(self.latestImg, (x, y), 5, (0, 255, 0), -1)
+            cv2.circle(self.latestImg, (x, y), 5, (0, 255, 0), 2)
+            
 
             
     def setThresh(self, name, value):
@@ -219,10 +220,10 @@ class ImageProc(threading.Thread):
 
 if __name__ == "__main__":
     
-    cv2.namedWindow("Create View", flags=cv2.WINDOW_AUTOSIZE)
+    cv2.namedWindow("Create View", flags=cv2.WINDOW_KEEPRATIO)
     cv2.moveWindow("Create View", 21, 21)
     
-    cv2.namedWindow('sliders')
+    cv2.namedWindow('sliders', flags=cv2.WINDOW_KEEPRATIO)
     cv2.moveWindow('sliders', 680, 21)
     
     sm = StateMachine()
