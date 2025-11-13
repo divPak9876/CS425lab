@@ -170,16 +170,27 @@ class ImageProc(threading.Thread):
             
             with imageLock:
                 self.latestImg = copy.deepcopy(img) # Make a copy not a reference
+    
+    def click(self, event, x, y, flags, params):
+        """
+        - when user left clicks, store (x,y) target position
+        - draw a circle at target position in image
+        - move robot towards this circle i.e. target position
+        """
+        if event == cv2.EVENT_LBUTTONDOWN:
+            self.goal = (x, y)
+            print("New goal:", self.goal)
+            cv2.circle(self.frame, (x, y), 5, (0, 255, 0), -1)
 
 
 if __name__ == "__main__":
     
-    cv2.namedWindow("Create View", flags=cv2.WINDOW_AUTOSIZE)
-    cv2.moveWindow("Create View", 21, 21)
-    
     sm = StateMachine()
     sm.start()
-
+    cv2.namedWindow("Create View", flags=cv2.WINDOW_AUTOSIZE)
+    cv2.moveWindow("Create View", 21, 21)
+    cv2.setMouseCallback("Create View", sm.video.click, sm.video)
+    
     while len(sm.video.latestImg) == 0:
         sleep(1)
 
