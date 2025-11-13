@@ -23,6 +23,8 @@ ENABLE_ROBOT_CONNECTION = False
 # You should fill this in with your states
 class States(enum.Enum):
     LISTEN = enum.auto()
+    MOVE = enum.auto()
+
 
 class StateMachine(threading.Thread):
 
