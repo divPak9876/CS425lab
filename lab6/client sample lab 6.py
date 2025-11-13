@@ -12,6 +12,7 @@ import urllib.request
 import cv2
 import numpy
 import copy
+import math
 
 socketLock = threading.Lock()
 imageLock = threading.Lock()
@@ -78,6 +79,7 @@ class StateMachine(threading.Thread):
         # BEGINNING OF THE CONTROL LOOP
         while(self.RUNNING):
             sleep(0.1)
+<<<<<<< HEAD
             if self.STATE == States.INIT:
                 with socketLock:                                    # stop robot
                     self.sock.sendall("a drive_straight(50)".encode())
@@ -110,6 +112,13 @@ class StateMachine(threading.Thread):
                         self.sock.recv(128)
                 
 
+=======
+            if self.STATE == States.LISTEN:
+                pass
+            # TODO: Work here
+        
+        # TODO: set up math for driving and then drive robot
+>>>>>>> 172ab63c1dfa59644c7fe474912648feed3afe3f
         # END OF CONTROL LOOP
         
         # First stop any other threads talking to the robot
@@ -187,7 +196,16 @@ class ImageProc(threading.Thread):
         self.feedback = []
         self.thresholds = {'lo_hue':0,'lo_saturation':121,'lo_value':42,'hi_hue':61,'hi_saturation':255,'hi_value':144}
 
+        # positions
         self.goal = None
+        self.lastPos = None
+        self.currentPos = None
+        
+        # headings
+        self.heading = None
+        self.headingGoal = None
+        self.distance = None
+
 
     def run(self):
         #url = "http://"+self.IP_ADDRESS+":"+str(self.PORT)
@@ -239,20 +257,80 @@ class ImageProc(threading.Thread):
         high = (self.thresholds['hi_hue'], self.thresholds['hi_saturation'], self.thresholds['hi_value'])
 
         cv2.cvtColor(self.latestImg, cv2.COLOR_RGB2HSV_FULL)
-
         theMask = cv2.inRange(self.latestImg, low, high)
+
         kernel = numpy.ones((3,3), numpy.uint8)
         theMask = cv2.erode(theMask, kernel, iterations = 1)
         theMask = cv2.dilate(theMask, kernel, iterations = 5)
         theMask = cv2.erode(theMask, kernel, iterations = 1)
 
-
         # TODO: Work here
         if not self.goal == None:
             cv2.circle(self.latestImg, self.goal, 5, (0, 255, 0), 2)
+
+        # update positions
+        _,_,stats,_ = cv2.connectedComponentsWithStats(theMask, connectivity=8, ltype=cv2.CV_32S)
+        self.lastPos = self.currentPos
+        tempPos = self.findBoundingBox(stats)
+
+        # compute ferb heading
+        try:
+            x2, y2 = tempPos
+            x1, y1 = self.lastPos
+
+            if math.hypot(y2-y1, x2-x1) > 20:
+                self.heading = math.atan2(y2-y1, x2-x1)
+                self.currentPos = tempPos
+        except:
+            pass
+
+        # compute heading to goal and distance
+        try:
+            x2, y1 = self.goal
+            x1, y1 = self.currentPos
+            self.headingGoal = math.atan2(y2-y1, x2-x1)
+
+            self.distance = math.hypot(y2-y1, x2-x1)
+            print(self.distance, " miles away from the goal.")
+        except:
+            print("Recalculating...turn left NOW!")
+
     
         # END TODO
         return cv2.bitwise_and(self.latestImg, self.latestImg, mask=theMask)
+    
+    def findBoundingBox(self, statsArr):
+        # extract area from each row (usually row[4])
+        areas = [row[4] for row in statsArr]
+        areasSorted = sorted(areas, reverse=True)
+
+        if len(areasSorted) < 2:
+            self.visible = False
+            return None  # no object
+
+        targetArea = areasSorted[1]  # second largest object
+
+        # find the index of the target object
+        objIndx = [i for i, row in enumerate(statsArr) if row[4] == targetArea]
+        if not objIndx:
+            self.visible = False
+            return None
+
+        idx = objIndx[0]
+
+        # bounding box
+        left = statsArr[idx][cv2.CC_STAT_LEFT]
+        top = statsArr[idx][cv2.CC_STAT_TOP]
+        width = statsArr[idx][cv2.CC_STAT_WIDTH]
+        height = statsArr[idx][cv2.CC_STAT_HEIGHT]
+
+        self.visible = True
+
+        # optional: draw rectangle on image
+        self.latestImg = cv2.rectangle(self.latestImg, (left, top), (left + width, top + height), (0, 255, 255), 2)
+
+        # return bounding box
+        return (left + width/2, top + height/2)
 
 # END OF IMAGEPROC
 
