@@ -157,6 +157,8 @@ class ImageProc(threading.Thread):
         self.feedback = []
         self.thresholds = {'low_red':80,'high_red':160,'low_green':160,'high_green':255,'low_blue':70,'high_blue':200}
 
+        self.goal = None
+
     def run(self):
         #url = "http://"+self.IP_ADDRESS+":"+str(self.PORT)
         #stream = urllib.request.urlopen(url)
@@ -198,9 +200,6 @@ class ImageProc(threading.Thread):
         if event == cv2.EVENT_LBUTTONDOWN:
             self.goal = (x, y)
             print("New goal:", self.goal)
-            cv2.circle(self.latestImg, (x, y), 5, (0, 255, 0), 2)
-            
-
             
     def setThresh(self, name, value):
         self.thresholds[name] = value
@@ -211,6 +210,8 @@ class ImageProc(threading.Thread):
         theMask = cv2.inRange(self.latestImg, low, high)
         
         # TODO: Work here
+        if not self.goal == None:
+            cv2.circle(self.latestImg, self.goal, 5, (0, 255, 0), 2)
     
         # END TODO
         return cv2.bitwise_and(self.latestImg, self.latestImg, mask=theMask)
