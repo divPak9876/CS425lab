@@ -80,7 +80,7 @@ class StateMachine(threading.Thread):
                 pass
             # TODO: Work here
         
-
+        # TODO: set up math for driving and then drive robot
         # END OF CONTROL LOOP
         
         # First stop any other threads talking to the robot
