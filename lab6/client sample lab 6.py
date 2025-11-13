@@ -149,13 +149,13 @@ class ImageProc(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)   # MUST call this to make sure we setup the thread correctly
         global IP_ADDRESS
-        self.cam = cv2.VideoCapture(0)
+        self.cam = cv2.VideoCapture(1)
         self.IP_ADDRESS = IP_ADDRESS
         self.PORT = 8081
         self.RUNNING = True
         self.latestImg = []
         self.feedback = []
-        self.thresholds = {'lo_hue':0,'lo_saturation':0,'lo_value':0,'hi_hue':0,'hi_saturation':0,'hi_value':0}
+        self.thresholds = {'lo_hue':0,'lo_saturation':121,'lo_value':42,'hi_hue':61,'hi_saturation':255,'hi_value':144}
 
         self.goal = None
 
@@ -211,7 +211,12 @@ class ImageProc(threading.Thread):
         cv2.cvtColor(self.latestImg, cv2.COLOR_RGB2HSV_FULL)
 
         theMask = cv2.inRange(self.latestImg, low, high)
-        
+        kernel = numpy.ones((3,3), numpy.uint8)
+        theMask = cv2.erode(theMask, kernel, iterations = 1)
+        theMask = cv2.dilate(theMask, kernel, iterations = 5)
+        theMask = cv2.erode(theMask, kernel, iterations = 1)
+
+
         # TODO: Work here
         if not self.goal == None:
             cv2.circle(self.latestImg, self.goal, 5, (0, 255, 0), 2)
