@@ -236,7 +236,7 @@ if __name__ == "__main__":
     cv2.setMouseCallback("Create View", sm.video.click, sm.video)
     
     # Probably safer to do this on the main thread rather than in ImgProc init
-    cv2.createTrackbar('lo_hue', 'sliders', sm.video.thresholds['low_hue'], 360,
+    cv2.createTrackbar('lo_hue', 'sliders', sm.video.thresholds['lo_hue'], 360,
                       lambda x: sm.video.setThresh('lo_hue', x) )
     cv2.createTrackbar('hi_hue', 'sliders', sm.video.thresholds['hi_hue'], 360,
                      lambda x: sm.video.setThresh('hi_hue', x) )
