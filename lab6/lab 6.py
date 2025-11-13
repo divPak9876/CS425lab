@@ -16,9 +16,9 @@ import copy
 socketLock = threading.Lock()
 imageLock = threading.Lock()
 
-IP_ADDRESS = "192.168.1.102" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
+IP_ADDRESS = "192.168.1.105" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
 RESIZE_SCALE = 2 # try a larger value if your computer is running slow.
-ENABLE_ROBOT_CONNECTION = True
+ENABLE_ROBOT_CONNECTION = False
 
 # You should fill this in with your states
 class States(enum.Enum):
