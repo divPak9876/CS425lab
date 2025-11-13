@@ -79,7 +79,6 @@ class StateMachine(threading.Thread):
         # BEGINNING OF THE CONTROL LOOP
         while(self.RUNNING):
             sleep(0.1)
-<<<<<<< HEAD
             if self.STATE == States.INIT:
                 with socketLock:                                    # stop robot
                     self.sock.sendall("a drive_straight(50)".encode())
@@ -110,15 +109,12 @@ class StateMachine(threading.Thread):
                     with socketLock:                                    
                         self.sock.sendall("a spin_right(50)".encode())
                         self.sock.recv(128)
-                
-
-=======
+                        
             if self.STATE == States.LISTEN:
                 pass
             # TODO: Work here
-        
-        # TODO: set up math for driving and then drive robot
->>>>>>> 172ab63c1dfa59644c7fe474912648feed3afe3f
+                
+
         # END OF CONTROL LOOP
         
         # First stop any other threads talking to the robot
