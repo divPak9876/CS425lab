@@ -109,7 +109,7 @@ class StateMachine(threading.Thread):
                     with socketLock:                                    
                         self.sock.sendall("a spin_right(50)".encode())
                         self.sock.recv(128)
-                        
+
             if self.STATE == States.LISTEN:
                 pass
             # TODO: Work here
@@ -274,17 +274,18 @@ class ImageProc(threading.Thread):
             x2, y2 = tempPos
             x1, y1 = self.lastPos
 
-            if math.hypot(y2-y1, x2-x1) > 20:
+            if math.hypot(y2-y1, x2-x1) > 20:   # don't update position if the robot hasn't moved far
                 self.heading = math.atan2(y2-y1, x2-x1)
                 self.currentPos = tempPos
         except:
-            pass
+            print("*LOUD INCORRECT BUZZER SOUND*")
 
         # compute heading to goal and distance
         try:
             x2, y1 = self.goal
             x1, y1 = self.currentPos
             self.headingGoal = math.atan2(y2-y1, x2-x1)
+            cv2.line(self.latestImg, self.currentPos, self.goal, (0, 255, 255), 2)  # draw line between robot and goal
 
             self.distance = math.hypot(y2-y1, x2-x1)
             print(self.distance, " miles away from the goal.")
