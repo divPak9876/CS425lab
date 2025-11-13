@@ -156,6 +156,9 @@ class ImageProc(threading.Thread):
         self.PORT = 8081
         self.RUNNING = True
         self.latestImg = []
+        self.feedback = []
+
+        self.thresholds = {'lo_hue':0,'lo_saturation':0,'lo_value':0,'hi_hue':255,'hi_saturation':255,'hi_value':360}
         
 
     def run(self):
@@ -182,9 +185,50 @@ class ImageProc(threading.Thread):
             print("New goal:", self.goal)
             cv2.circle(self.frame, (x, y), 5, (0, 255, 0), -1)
 
+            masked = self.doImgProc() #pass by reference for all non-primitve types in Python
+
+            # after image processing you can update here to see the new version
+            with imageLock:
+                self.feedback = copy.deepcopy(masked)
+
+    def setThresh(self, name, value):
+        self.thresholds[name] = value
+    
+    def doImgProc(self):
+        """
+        low = (self.thresholds['low_blue'], self.thresholds['low_green'], self.thresholds['low_red'])
+        high = (self.thresholds['high_blue'], self.thresholds['high_green'], self.thresholds['high_red'])
+        theMask = cv2.inRange(self.latestImg, low, high)
+        """
+        
+        # TODO: Work here
+        # HSV slider/masking
+        low = (self.thresholds['lo_hue'], self.thresholds['lo_saturation'], self.thresholds['lo_value'])
+        high = (self.thresholds['hi_hue'], self.thresholds['hi_saturation'], self.thresholds['hi_value'])
+        
+        cv2.cvtColor(self.latestImg, cv2.COLOR_RGB2HSV_FULL)    # convert to HSV
+
+        theMask = cv2.inRange(self.latestImg, low, high)    # mask image
+
+        # erode and dilate to remove noise
+        kernel = numpy.ones((3, 3), numpy.uint8)
+        kernel2 = numpy.ones((5, 5), numpy.uint8)
+        theMask = cv2.erode(theMask, kernel2, iterations=4)
+        theMask = cv2.dilate(theMask, kernel, iterations=5)
+        theMask = cv2.erode(theMask, kernel, iterations=4)        
+
+        components, labels, stats, centroids = cv2.connectedComponentsWithStats(theMask, connectivity=8, ltype=cv2.CV_32S)
+
+        # self.drawCircle(stats) # draw circle ontop of image
+        
+        self.findCenter(stats) # find center of object
+    
+        # END TODO
+        return theMask
 
 if __name__ == "__main__":
     
+<<<<<<< HEAD
     sm = StateMachine()
     sm.start()
     cv2.namedWindow("Create View", flags=cv2.WINDOW_AUTOSIZE)
@@ -192,14 +236,28 @@ if __name__ == "__main__":
     cv2.setMouseCallback("Create View", sm.video.click, sm.video)
     
     while len(sm.video.latestImg) == 0:
+=======
+    cv2.namedWindow("Create View", flags=cv2.WINDOW_AUTOSIZE)
+    cv2.moveWindow("Create View", 21, 21)
+    
+    cv2.namedWindow('sliders')
+    cv2.moveWindow('sliders', 680, 21)
+    
+    sm = StateMachine()
+    sm.start()
+
+    while len(sm.video.latestImg) == 0 or len(sm.video.feedback) == 0:
+>>>>>>> c1a5b023a78c8479f1f36435a090d3150c524008
         sleep(1)
 
     while(sm.RUNNING):
         with imageLock:
             cv2.imshow("Create View",sm.video.latestImg)
+            cv2.imshow("sliders",sm.video.feedback)
         cv2.waitKey(5)
 
     cv2.destroyAllWindows()
 
     sleep(1)
 
+    #sm.join()
