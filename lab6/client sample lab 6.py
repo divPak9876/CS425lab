@@ -37,7 +37,7 @@ class StateMachine(threading.Thread):
         self.IP_ADDRESS = IP_ADDRESS
         self.CONTROLLER_PORT = 5001
         self.TIMEOUT = 10					# If its unable to connect after 10 seconds, give up.  Want this to be a while so robot can init.
-        self.STATE = States.LISTEN
+        self.STATE = States.INIT
         self.RUNNING = True
         self.DIST = False
         self.video = ImageProc()
@@ -75,45 +75,44 @@ class StateMachine(threading.Thread):
         self.listener.start()
             
     def run(self):
-
         # BEGINNING OF THE CONTROL LOOP
         while(self.RUNNING):
             sleep(0.1)
-            if self.STATE == States.INIT:
-                with socketLock:                                    # stop robot
+            if self.STATE == States.INIT: # move a for error calc
+                with socketLock:
                     self.sock.sendall("a drive_straight(50)".encode())
                     self.sock.recv(128)
                     sleep(0.5)
-                    self.STATE = States.GET_CIRCLE
+                    self.STATE = States.GET_CIRCLE # start chasing goal
 
             elif self.STATE == States.GET_CIRCLE:
-                # if distance == 0
-                    #stop moving
+                if self.distance == 0: # we are at goal, don't move
+                    with socketLock:
+                        self.sock.sendall("a drive_straight(0)".encode())
+                        self.sock.recv(128)
+                else:
+                    # error is diff between current heading and goal heading
+                    ferb_head = self.heading
+                    goal_head = self.goal_heading
+                    error = ferb_head - goal_head
 
-                # calculate error: goal heading - ferb heading
-                # ferb_head = self.heading
-                # goal_head = self.goal_heading
-                error = 0 # ferb_head - goal_head
-
-                # turn until error 0
-                # use error as an "angle", right if -, left if +
-                if error == 0:
-                    with socketLock:                                    
-                        self.sock.sendall("a drive_straight(50)".encode())
-                        self.sock.recv(128)
-                elif error < 0: # turn right
-                    with socketLock:                                    
-                        self.sock.sendall("a spin_right(50)".encode())
-                        self.sock.recv(128)
-                elif error > 0: # turn left
-                    with socketLock:                                    
-                        self.sock.sendall("a spin_right(50)".encode())
-                        self.sock.recv(128)
-                        
-            if self.STATE == States.LISTEN:
+                    # turn until error 0
+                    # if error angle is neg turn right, pos turn left
+                    # idk where 0 is so I guessed for turning, feel free to change later - rowena
+                    if error == 0:
+                        with socketLock:                                    
+                            self.sock.sendall("a drive_straight(50)".encode())
+                            self.sock.recv(128)
+                    elif error < 0: # turn right
+                        with socketLock:                                    
+                            self.sock.sendall("a spin_right(50)".encode())
+                            self.sock.recv(128)
+                    elif error > 0: # turn left
+                        with socketLock:                                    
+                            self.sock.sendall("a spin_left(50)".encode())
+                            self.sock.recv(128)       
+            elif self.STATE == States.LISTEN:
                 pass
-            # TODO: Work here
-                
 
         # END OF CONTROL LOOP
         
