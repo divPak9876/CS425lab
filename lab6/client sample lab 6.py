@@ -23,7 +23,8 @@ ENABLE_ROBOT_CONNECTION = False
 # You should fill this in with your states
 class States(enum.Enum):
     LISTEN = enum.auto()
-    MOVE = enum.auto()
+    INIT = enum.auto()
+    GET_CIRCLE = enum.auto()
 
 
 class StateMachine(threading.Thread):
@@ -77,10 +78,37 @@ class StateMachine(threading.Thread):
         # BEGINNING OF THE CONTROL LOOP
         while(self.RUNNING):
             sleep(0.1)
-            if self.STATE == States.LISTEN:
-                pass
-            # TODO: Work here
-        
+            if self.STATE == States.INIT:
+                with socketLock:                                    # stop robot
+                    self.sock.sendall("a drive_straight(50)".encode())
+                    self.sock.recv(128)
+                    sleep(0.5)
+                    self.STATE = States.GET_CIRCLE
+
+            elif self.STATE == States.GET_CIRCLE:
+                # if distance == 0
+                    #stop moving
+
+                # calculate error: goal heading - ferb heading
+                # ferb_head = self.heading
+                # goal_head = self.goal_heading
+                error = 0 # ferb_head - goal_head
+
+                # turn until error 0
+                # use error as an "angle", right if -, left if +
+                if error == 0:
+                    with socketLock:                                    
+                        self.sock.sendall("a drive_straight(50)".encode())
+                        self.sock.recv(128)
+                elif error < 0: # turn right
+                    with socketLock:                                    
+                        self.sock.sendall("a spin_right(50)".encode())
+                        self.sock.recv(128)
+                elif error > 0: # turn left
+                    with socketLock:                                    
+                        self.sock.sendall("a spin_right(50)".encode())
+                        self.sock.recv(128)
+                
 
         # END OF CONTROL LOOP
         
