@@ -190,8 +190,21 @@ class ImageProc(threading.Thread):
                 self.feedback = copy.deepcopy(masked)
 
     def click(self, event, x, y, flags, params):
+        """
+        - when user left clicks, store (x,y) target position
+        - draw a circle at target position in image
+        - move robot towards this circle i.e. target position
+        """
         if event == cv2.EVENT_LBUTTONDOWN:
-            print("clicked!")
+            self.goal = (x, y)
+            print("New goal:", self.goal)
+            cv2.circle(self.frame, (x, y), 5, (0, 255, 0), -1)
+
+            masked = self.doImgProc() #pass by reference for all non-primitve types in Python
+
+            # after image processing you can update here to see the new version
+            with imageLock:
+                self.feedback = copy.deepcopy(masked)
             
     def setThresh(self, name, value):
         self.thresholds[name] = value
