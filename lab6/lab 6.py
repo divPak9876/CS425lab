@@ -16,20 +16,14 @@ import copy
 socketLock = threading.Lock()
 imageLock = threading.Lock()
 
-IP_ADDRESS = "192.168.1.102" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
+IP_ADDRESS = "192.168.1.105" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
 RESIZE_SCALE = 2 # try a larger value if your computer is running slow.
-ENABLE_ROBOT_CONNECTION = True
+ENABLE_ROBOT_CONNECTION = False
 
 # You should fill this in with your states
 class States(enum.Enum):
-    SEARCH = enum.auto()
-    VISIBLE = enum.auto()
-    TURN_L = enum.auto()
-    TURN_R = enum.auto()
-    FORWARD = enum.auto()
-    FAR = enum.auto()
-    MEDIUM = enum.auto()
-    CLOSE = enum.auto()
+    NONE = enum.auto()
+    
 
 class StateMachine(threading.Thread):
 
@@ -40,14 +34,10 @@ class StateMachine(threading.Thread):
         self.IP_ADDRESS = IP_ADDRESS
         self.CONTROLLER_PORT = 5001
         self.TIMEOUT = 10					# If its unable to connect after 10 seconds, give up.  Want this to be a while so robot can init.
-        self.STATE = States.SEARCH
+        self.STATE = States.NONE
         self.RUNNING = True
         self.DIST = False
         self.video = ImageProc()
-        self.leftScreen = 320 / 3
-        self.rightScreen = self.leftScreen * 2
-        self.topScreen = 2 * 240 / 5
-        self.bottomScreen = 3 * 240 / 5
 
         # Start video
         self.video.start()
@@ -88,114 +78,6 @@ class StateMachine(threading.Thread):
         # BEGINNING OF THE CONTROL LOOP
         while self.RUNNING:
             sleep(0.1)
-
-            # starting state to look for yellow beach ball
-            if self.STATE == States.SEARCH:
-                print("Ferb: SEARCHING")
-                
-                if self.video.visible:              # found ball
-                    self.STATE = States.VISIBLE
-
-                else:                               # ball is not seen
-                    with socketLock:
-                        self.sock.sendall("a spin_left(50)".encode())
-                        self.sock.recv(128)
-
-            # state to decide next state
-            elif self.STATE == States.VISIBLE:
-                with socketLock:                                    # stop robot
-                    self.sock.sendall("a drive_straight(0)".encode())
-                    self.sock.recv(128)
-
-                if self.video.objCentroid[0] < self.leftScreen:           # left sixth of screen
-                    self.STATE = States.TURN_L
-                    print("Ferb: LEFT!!!")
-
-                elif self.video.objCentroid[0] > self.rightScreen:     # right sixth of screen
-                    self.STATE = States.TURN_R
-                    print("Ferb: RIGHT!!!")
-
-                elif self.video.visible:                            # drive forward
-                    self.STATE = States.FORWARD
-                    print("Ferb: FORWARD!!!")
-
-                else:                                               # no ball; search
-                    self.STATE = States.SEARCH
-
-            
-            elif self.STATE == States.TURN_L:
-                
-                with socketLock:
-                    self.sock.sendall("a spin_left(50)".encode())
-                    self.sock.recv(128)
-
-                # check if state should be changed
-                if self.video.visible != True:
-                    self.STATE = States.SEARCH
-
-                elif self.video.objCentroid[0] > self.leftScreen:
-                    self.STATE = States.VISIBLE
-
-            elif self.STATE == States.TURN_R:
-
-                with socketLock:
-                    self.sock.sendall("a spin_right(50)".encode())
-                    self.sock.recv(128)
-
-                # check if state should be changed
-                if self.video.visible != True:
-                    self.STATE = States.SEARCH
-
-                elif self.video.objCentroid[0] < self.rightScreen:
-                    self.STATE = States.VISIBLE
-            
-            elif self.STATE == States.FORWARD:
-                
-                # check which forward state
-                if self.video.visible != True:
-                    self.STATE = States.SEARCH
-
-                elif self.video.objCentroid[0] < self.leftScreen or self.video.objCentroid[0] > self.rightScreen:
-                    self.STATE = States.VISIBLE
-
-                elif self.video.objCentroid[1] < self.topScreen:
-                    self.STATE = States.CLOSE
-                    print("Ferb: CLOSE!!!")
-
-                elif self.video.objCentroid[1] > self.bottomScreen:
-                    self.STATE = States.FAR
-                    print("Ferb: FAR!!!")
-
-                else:
-                    self.STATE = States.MEDIUM
-                    print("Ferb: MEDIUM!!!")
-
-                
-            # forward states
-            if self.STATE == States.MEDIUM:
-
-                with socketLock:
-                    self.sock.sendall("a drive_straight(100)".encode())
-                    self.sock.recv(128)
-
-                self.STATE = States.FORWARD
-
-            elif self.STATE == States.FAR:
-
-                with socketLock:
-                    self.sock.sendall("a drive_straight(150)".encode())
-                    self.sock.recv(128)
-
-                self.STATE = States.FORWARD
-
-            elif self.STATE == States.CLOSE:
-                
-                with socketLock:
-                    self.sock.sendall("a drive_straight(50)".encode())
-                    self.sock.recv(128)
-
-                self.STATE = States.FORWARD
-
             # TODO: Work here
 
 
@@ -274,18 +156,7 @@ class ImageProc(threading.Thread):
         self.PORT = 8081
         self.RUNNING = True
         self.latestImg = []
-        self.feedback = []
-        self.thresholds = {'lo_hue':0,'lo_saturation':0,'lo_value':0,'hi_hue':0,'hi_saturation':0,'hi_value':0}
-        self.objCentroid = (0,0)
-        self.visible = False
-
-        # hard code for yellow beach ball
-        # this masks out a yellow beachball
-        self.yellowBeachball = {'lo_hue':0,'lo_saturation':115,'lo_value':130,'hi_hue':90,'hi_saturation':185,'hi_value':230}
-
-        """
-        self.thresholds = {'low_red':0,'high_red':0,'low_green':0,'high_green':0,'low_blue':0,'high_blue':0}
-        """
+        
 
     def run(self):
         url = "http://"+self.IP_ADDRESS+":"+str(self.PORT)
@@ -300,165 +171,21 @@ class ImageProc(threading.Thread):
             with imageLock:
                 self.latestImg = copy.deepcopy(img) # Make a copy not a reference
 
-            masked = self.doImgProc() #pass by reference for all non-primitve types in Python
-
-            # after image processing you can update here to see the new version
-            with imageLock:
-                self.feedback = copy.deepcopy(masked)
-            
-
-    def setThresh(self, name, value):
-        self.thresholds[name] = value
-    
-    def doImgProc(self):
-        """
-        low = (self.thresholds['low_blue'], self.thresholds['low_green'], self.thresholds['low_red'])
-        high = (self.thresholds['high_blue'], self.thresholds['high_green'], self.thresholds['high_red'])
-        theMask = cv2.inRange(self.latestImg, low, high)
-        """
-        
-        # TODO: Work here
-        # HSV slider/masking
-        """
-        low = (self.thresholds['lo_hue'], self.thresholds['lo_saturation'], self.thresholds['lo_value'])
-        high = (self.thresholds['hi_hue'], self.thresholds['hi_saturation'], self.thresholds['hi_value'])
-        """
-        
-        # defined low and high values for beachball
-        low = (self.yellowBeachball['lo_hue'], self.yellowBeachball['lo_saturation'], self.yellowBeachball['lo_value'])
-        high = (self.yellowBeachball['hi_hue'], self.yellowBeachball['hi_saturation'], self.yellowBeachball['hi_value'])
-        
-        cv2.cvtColor(self.latestImg, cv2.COLOR_RGB2HSV_FULL)    # convert to HSV
-
-        theMask = cv2.inRange(self.latestImg, low, high)    # mask image
-
-        # erode and dilate to remove noise
-        kernel = numpy.ones((3, 3), numpy.uint8)
-        kernel2 = numpy.ones((5, 5), numpy.uint8)
-        theMask = cv2.erode(theMask, kernel2, iterations=4)
-        theMask = cv2.dilate(theMask, kernel, iterations=5)
-        theMask = cv2.erode(theMask, kernel, iterations=4)        
-
-        components, labels, stats, centroids = cv2.connectedComponentsWithStats(theMask, connectivity=8, ltype=cv2.CV_32S)
-
-        # self.drawCircle(stats) # draw circle ontop of image
-        
-        self.findCenter(stats) # find center of object
-    
-        # END TODO
-        return cv2.bitwise_and(self.latestImg, self.latestImg, mask=theMask)
-    
-    def drawCircle(self, statsArr):
-        # extract the 4th element from each row and sort
-        pxCount = [row[3] for row in statsArr]
-        pxSorted = sorted(pxCount, reverse=True)
-
-        if len(pxSorted) < 2:
-            return      # no object in image
-
-        maskTarget = pxSorted[1] # target object
-
-        # find the index of the target object
-        objIndx = [i for i, row in enumerate(statsArr) if row[3] == maskTarget]
-        if not objIndx:
-            return  # safety check
-
-        idx = objIndx[0]
-        # draw circle onto image
-        
-        self.latestImg = cv2.circle(self.latestImg,(int(statsArr[idx][cv2.CC_STAT_LEFT] + statsArr[idx][cv2.CC_STAT_WIDTH] / 2),
-                                                    int(statsArr[idx][cv2.CC_STAT_TOP] + statsArr[idx][cv2.CC_STAT_HEIGHT] / 2)),
-                                                    50,(360, 255, 255),2)
-
-        return
-    
-    def findCenter(self, statsArr):
-        # extract the 4th element from each row and sort
-        pxCount = [row[3] for row in statsArr]
-        pxSorted = sorted(pxCount, reverse=True)
-
-        if len(pxSorted) < 2:
-            self.visible = False
-            return      # no object in image
-
-        maskTarget = pxSorted[1] # target object
-
-        # find the index of the target object
-        objIndx = [i for i, row in enumerate(statsArr) if row[3] == maskTarget]
-        if not objIndx:
-            self.visible = False
-            return  # safety check
-
-        idx = objIndx[0]
-
-        # draw circle onto image
-        self.latestImg = cv2.circle(self.latestImg,(int(statsArr[idx][cv2.CC_STAT_LEFT] + statsArr[idx][cv2.CC_STAT_WIDTH] / 2),
-                                                    int(statsArr[idx][cv2.CC_STAT_TOP] + statsArr[idx][cv2.CC_STAT_HEIGHT] / 2)),
-                                                    10,(360, 255, 255), 3)
-
-        # find center
-        self.objCentroid = (int(statsArr[idx][cv2.CC_STAT_LEFT] + statsArr[idx][cv2.CC_STAT_WIDTH] / 2),
-                    int(statsArr[idx][cv2.CC_STAT_TOP] + statsArr[idx][cv2.CC_STAT_HEIGHT] / 2))
-        
-        self.visible = True
-        
-        return
-
-# END OF IMAGEPROC
-
 
 if __name__ == "__main__":
     
     cv2.namedWindow("Create View", flags=cv2.WINDOW_AUTOSIZE)
     cv2.moveWindow("Create View", 21, 21)
     
-    cv2.namedWindow('sliders')
-    cv2.moveWindow('sliders', 680, 21)
-    
     sm = StateMachine()
     sm.start()
-    
-    # Probably safer to do this on the main thread rather than in ImgProc init
-    """
-    cv2.createTrackbar('low_red', 'sliders', sm.video.thresholds['low_red'], 255,
-                      lambda x: sm.video.setThresh('low_red', x) )
-    cv2.createTrackbar('high_red', 'sliders', sm.video.thresholds['high_red'], 255,
-                     lambda x: sm.video.setThresh('high_red', x) )
-    
-    cv2.createTrackbar('low_green', 'sliders', sm.video.thresholds['low_green'], 255,
-                      lambda x: sm.video.setThresh('low_green', x) )
-    cv2.createTrackbar('high_green', 'sliders', sm.video.thresholds['high_green'], 255,
-                     lambda x: sm.video.setThresh('high_green', x) )
-    
-    cv2.createTrackbar('low_blue', 'sliders', sm.video.thresholds['low_blue'], 255,
-                      lambda x: sm.video.setThresh('low_blue', x) )
-    cv2.createTrackbar('high_blue', 'sliders', sm.video.thresholds['high_blue'], 255,
-                     lambda x: sm.video.setThresh('high_blue', x) )
-    """
 
-    # HSV sliders
-    cv2.createTrackbar('lo_hue', 'sliders', sm.video.thresholds['lo_hue'], 360,
-                      lambda x: sm.video.setThresh('lo_hue', x) )
-    cv2.createTrackbar('hi_hue', 'sliders', sm.video.thresholds['hi_hue'], 360,
-                     lambda x: sm.video.setThresh('hi_hue', x) )
-    
-    cv2.createTrackbar('lo_saturation', 'sliders', sm.video.thresholds['lo_saturation'], 255,
-                      lambda x: sm.video.setThresh('lo_saturation', x) )
-    cv2.createTrackbar('hi_saturation', 'sliders', sm.video.thresholds['hi_saturation'], 255,
-                     lambda x: sm.video.setThresh('hi_saturation', x) )
-    
-    cv2.createTrackbar('lo_value', 'sliders', sm.video.thresholds['lo_value'], 255,
-                      lambda x: sm.video.setThresh('lo_value', x) )
-    cv2.createTrackbar('hi_value', 'sliders', sm.video.thresholds['hi_value'], 255,
-                     lambda x: sm.video.setThresh('hi_value', x) )
-
-    while len(sm.video.latestImg) == 0 or len(sm.video.feedback) == 0:
+    while len(sm.video.latestImg) == 0:
         sleep(1)
 
     while(sm.RUNNING):
         with imageLock:
             cv2.imshow("Create View",sm.video.latestImg)
-            cv2.imshow("sliders",sm.video.feedback)
         cv2.waitKey(5)
 
     cv2.destroyAllWindows()
