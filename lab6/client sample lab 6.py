@@ -303,18 +303,16 @@ class ImageProc(threading.Thread):
         tempPos = self.findBoundingBox(stats)
 
         # compute ferb heading
-        try:
+        if not tempPos == None and not self.lastPos == None:
             x2, y2 = tempPos
             x1, y1 = self.lastPos
 
             if math.hypot(y2-y1, x2-x1) > 20:   # don't update position if the robot hasn't moved far
                 self.heading = math.atan2(y2-y1, x2-x1)
                 self.currentPos = tempPos
-        except:
-            print("*LOUD INCORRECT BUZZER SOUND*")
 
         # compute heading to goal and distance
-        try:
+        if not self.goal == None and not self.currentPos == None:
             x2, y1 = self.goal
             x1, y1 = self.currentPos
             self.headingGoal = math.atan2(y2-y1, x2-x1)
@@ -322,9 +320,6 @@ class ImageProc(threading.Thread):
 
             self.distance = math.hypot(y2-y1, x2-x1)
             print(self.distance, " miles away from the goal.")
-        except:
-            print("Recalculating...turn left NOW!")
-
     
         # END TODO
         return cv2.bitwise_and(self.latestImg, self.latestImg, mask=theMask)
