@@ -82,7 +82,11 @@ class StateMachine(threading.Thread):
                 with socketLock:
                     self.sock.sendall("a drive_straight(50)".encode())
                     self.sock.recv(128)
-                    sleep(0.5)
+
+                sleep(0.5)
+                with socketLock:
+                    self.sock.sendall("a drive_straight(0)".encode())
+                    self.sock.recv(128)
                     self.STATE = States.GET_CIRCLE # start chasing goal
 
             elif self.STATE == States.GET_CIRCLE:
@@ -99,7 +103,29 @@ class StateMachine(threading.Thread):
                     goal_head = self.video.headingGoal
 
                     if not ferb_head == None and not goal_head == None:
-                        # compute error (wrap)
+
+                        # error is diff between current heading and goal heading
+                        ferb_head = self.video.heading
+                        goal_head = self.video.headingGoal
+                        error = ferb_head - goal_head
+
+                        # turn until error 0
+                        # if error angle is neg turn right, pos turn left
+                        # idk where 0 is so I guessed for turning, feel free to change later - rowena
+                        if error == 0:
+                            with socketLock:                                    
+                                self.sock.sendall("a drive_straight(50)".encode())
+                                self.sock.recv(128)
+                        elif error < 0: # turn right
+                            with socketLock:                                    
+                                self.sock.sendall("a spin_right(50)".encode())
+                                self.sock.recv(128)
+                        elif error > 0: # turn left
+                            with socketLock:                                    
+                                self.sock.sendall("a spin_left(50)".encode())
+                                self.sock.recv(128)   
+
+                        """# compute error (wrap)
                         error = goal_head - ferb_head
                         error = (error + 180) % 360 - 180
 
@@ -124,28 +150,8 @@ class StateMachine(threading.Thread):
                                 else:
                                     self.sock.sendall(f"a spin_right({int(abs(u))})".encode())
 
-                            self.sock.recv(128)
-
-                    """# error is diff between current heading and goal heading
-                    ferb_head = self.video.heading
-                    goal_head = self.video.headingGoal
-                    error = ferb_head - goal_head
-
-                    # turn until error 0
-                    # if error angle is neg turn right, pos turn left
-                    # idk where 0 is so I guessed for turning, feel free to change later - rowena
-                    if error == 0:
-                        with socketLock:                                    
-                            self.sock.sendall("a drive_straight(50)".encode())
-                            self.sock.recv(128)
-                    elif error < 0: # turn right
-                        with socketLock:                                    
-                            self.sock.sendall("a spin_right(50)".encode())
-                            self.sock.recv(128)
-                    elif error > 0: # turn left
-                        with socketLock:                                    
-                            self.sock.sendall("a spin_left(50)".encode())
-                            self.sock.recv(128)"""       
+                            self.sock.recv(128)"""
+                        
             elif self.STATE == States.LISTEN:
                 pass
 
@@ -203,13 +209,14 @@ class Sensing(threading.Thread):
     
     def run(self):
         while self.RUNNING:
-            sleep(1)
+            # sleep(1)
             # This is where I would get a sensor update
             # Store it in this class
             # You can change the polling frequency to optimize performance, don't forget to use socketLock
-            with socketLock:
-                self.sock.sendall("a distance".encode())
-                print(self.sock.recv(128))
+            # with socketLock:
+            #     self.sock.sendall("a distance".encode())
+            #     print(self.sock.recv(128))
+            pass
 
 
 # END OF SENSING
@@ -311,13 +318,16 @@ class ImageProc(threading.Thread):
             if math.hypot(y2-y1, x2-x1) > 20:   # don't update position if the robot hasn't moved far
                 self.heading = math.atan2(y2-y1, x2-x1)
                 self.currentPos = tempPos
+            
+        elif self.currentPos == None:
+            self.currentPos = tempPos
 
         # compute heading to goal and distance
         if not self.goal == None and not self.currentPos == None:
-            x2, y1 = self.goal
-            x1, y1 = self.currentPos
+            x2, y2 = map(int, self.goal)
+            x1, y1 = map(int, self.currentPos)
             self.headingGoal = math.atan2(y2-y1, x2-x1)
-            cv2.line(self.latestImg, self.currentPos, self.goal, (0, 255, 255), 2)  # draw line between robot and goal
+            cv2.line(self.latestImg, (x2, y2), (x1, y1), (0, 255, 255), 2)  # draw line between robot and goal
 
             self.distance = math.hypot(y2-y1, x2-x1)
             print(self.distance, " miles away from the goal.")
