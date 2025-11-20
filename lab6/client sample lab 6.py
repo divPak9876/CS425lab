@@ -108,19 +108,20 @@ class StateMachine(threading.Thread):
                         ferb_head = self.video.heading
                         goal_head = self.video.headingGoal
                         error = ferb_head - goal_head
+                        print("error: ", error)
 
                         # turn until error 0
                         # if error angle is neg turn right, pos turn left
                         # idk where 0 is so I guessed for turning, feel free to change later - rowena
-                        if error == 0:
+                        if error < 1 and error > -1:
                             with socketLock:                                    
                                 self.sock.sendall("a drive_straight(50)".encode())
                                 self.sock.recv(128)
-                        elif error < 0: # turn right
+                        elif error < -1: # turn right
                             with socketLock:                                    
                                 self.sock.sendall("a spin_right(50)".encode())
                                 self.sock.recv(128)
-                        elif error > 0: # turn left
+                        elif error > 1: # turn left
                             with socketLock:                                    
                                 self.sock.sendall("a spin_left(50)".encode())
                                 self.sock.recv(128)   
