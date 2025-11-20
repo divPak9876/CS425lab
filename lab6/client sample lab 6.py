@@ -79,11 +79,14 @@ class StateMachine(threading.Thread):
         while(self.RUNNING):
             sleep(0.1)
             if self.STATE == States.INIT: # move a for error calc
-                with socketLock:
-                    self.sock.sendall("a drive_straight(50)".encode())
-                    self.sock.recv(128)
+                while self.video.heading == None:
+                    with socketLock:
+                        self.sock.sendall("a drive_straight(50)".encode())
+                        self.sock.recv(128)
+                    sleep(0.1)
 
-                sleep(0.5)
+                print(self.video.heading)
+
                 with socketLock:
                     self.sock.sendall("a drive_straight(0)".encode())
                     self.sock.recv(128)
@@ -96,34 +99,13 @@ class StateMachine(threading.Thread):
                         self.sock.recv(128)
                 else:
                     # Gains (tune these)
-                    Kp = 2.0
-                    Kd = 0.5
+                    Kp = 100
+                    Kd = 50
 
                     ferb_head = self.video.heading
                     goal_head = self.video.headingGoal
 
                     if not ferb_head == None and not goal_head == None:
-
-                        """# error is diff between current heading and goal heading
-                        error = ferb_head - goal_head
-                        print("error: ", error)
-
-                        # turn until error 0
-                        # if error angle is neg turn right, pos turn left
-                        # idk where 0 is so I guessed for turning, feel free to change later - rowena
-                        if error < 1 and error > -1:
-                            with socketLock:                                    
-                                self.sock.sendall("a drive_straight(50)".encode())
-                                self.sock.recv(128)
-                        elif error < -1: # turn right
-                            with socketLock:                                    
-                                self.sock.sendall("a spin_right(50)".encode())
-                                self.sock.recv(128)
-                        elif error > 1: # turn left
-                            with socketLock:                                    
-                                self.sock.sendall("a spin_left(50)".encode())
-                                self.sock.recv(128)   """
-
                         # compute error (wrap)
                         error = goal_head - ferb_head
                         error = (error + 180) % 360 - 180
@@ -160,7 +142,27 @@ class StateMachine(threading.Thread):
                         with socketLock:
                             self.sock.sendall(f"a drive_direct({left_cmd},{right_cmd})".encode())
                             self.sock.recv(128)
+                        """# error is diff between current heading and goal heading
+                        error = ferb_head - goal_head
+                        print("error: ", error)
 
+                        # turn until error 0
+                        # if error angle is neg turn right, pos turn left
+                        # idk where 0 is so I guessed for turning, feel free to change later - rowena
+                        if error < 1 and error > -1:
+                            with socketLock:                                    
+                                self.sock.sendall("a drive_straight(50)".encode())
+                                self.sock.recv(128)
+                        elif error < -1: # turn right
+                            with socketLock:                                    
+                                self.sock.sendall("a spin_right(50)".encode())
+                                self.sock.recv(128)
+                        elif error > 1: # turn left
+                            with socketLock:                                    
+                                self.sock.sendall("a spin_left(50)".encode())
+                                self.sock.recv(128)   """
+                    else:
+                        print("u stupid")
                         
             elif self.STATE == States.LISTEN:
                 pass
