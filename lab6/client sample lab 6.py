@@ -322,12 +322,16 @@ class ImageProc(threading.Thread):
 
         # compute ferb heading
         if not tempPos == None and not self.lastPos == None:
-            x2, y2 = tempPos
-            x1, y1 = self.lastPos
+            x2, y2 = map(int, tempPos)
+            x1, y1 = map(int, self.lastPos)
 
             if math.hypot(y2-y1, x2-x1) > 20:   # don't update position if the robot hasn't moved far
                 self.heading = math.atan2(y2-y1, x2-x1)
                 self.currentPos = tempPos
+
+                x3 = (math.cos(self.heading) * 50) + x2
+                y3 = (math.sin(self.heading) * 50) + y2
+                cv2.line(self.latestImg, (x3, y3), (x2, y2), (0, 255, 255), 2)
             
         elif self.currentPos == None:
             self.currentPos = tempPos
