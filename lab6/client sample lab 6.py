@@ -86,14 +86,48 @@ class StateMachine(threading.Thread):
                     self.STATE = States.GET_CIRCLE # start chasing goal
 
             elif self.STATE == States.GET_CIRCLE:
-                if self.distance == 0: # we are at goal, don't move
+                if self.video.distance == 0: # we are at goal, don't move
                     with socketLock:
                         self.sock.sendall("a drive_straight(0)".encode())
                         self.sock.recv(128)
                 else:
-                    # error is diff between current heading and goal heading
-                    ferb_head = self.heading
-                    goal_head = self.goal_heading
+                    # Gains (tune these)
+                    Kp = 2.0
+                    Kd = 0.5
+
+                    ferb_head = self.video.heading
+                    goal_head = self.video.headingGoal
+
+                    # compute error (wrap)
+                    error = goal_head - ferb_head
+                    error = (error + 180) % 360 - 180
+
+                    # previous error handling
+                    prev_error = getattr(self, "prev_error", 0.0)
+                    d_error = error - prev_error
+                    self.prev_error = error
+
+                    # PD output
+                    u = Kp*error + Kd*d_error
+
+                    # clamp
+                    u = max(min(u, 100), -100)
+
+                    with socketLock:
+                        # small deadband to avoid micro-wobble
+                        if abs(error) < 2:
+                            self.sock.sendall("a drive_straight(50)".encode())
+                        else:
+                            if u > 0:
+                                self.sock.sendall(f"a spin_left({int(abs(u))})".encode())
+                            else:
+                                self.sock.sendall(f"a spin_right({int(abs(u))})".encode())
+
+                        self.sock.recv(128)
+
+                    """# error is diff between current heading and goal heading
+                    ferb_head = self.video.heading
+                    goal_head = self.video.headingGoal
                     error = ferb_head - goal_head
 
                     # turn until error 0
@@ -110,7 +144,7 @@ class StateMachine(threading.Thread):
                     elif error > 0: # turn left
                         with socketLock:                                    
                             self.sock.sendall("a spin_left(50)".encode())
-                            self.sock.recv(128)       
+                            self.sock.recv(128)"""       
             elif self.STATE == States.LISTEN:
                 pass
 
