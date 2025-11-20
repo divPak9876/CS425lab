@@ -98,32 +98,33 @@ class StateMachine(threading.Thread):
                     ferb_head = self.video.heading
                     goal_head = self.video.headingGoal
 
-                    # compute error (wrap)
-                    error = goal_head - ferb_head
-                    error = (error + 180) % 360 - 180
+                    if not ferb_head == None and not goal_head == None:
+                        # compute error (wrap)
+                        error = goal_head - ferb_head
+                        error = (error + 180) % 360 - 180
 
-                    # previous error handling
-                    prev_error = getattr(self, "prev_error", 0.0)
-                    d_error = error - prev_error
-                    self.prev_error = error
+                        # previous error handling
+                        prev_error = getattr(self, "prev_error", 0.0)
+                        d_error = error - prev_error
+                        self.prev_error = error
 
-                    # PD output
-                    u = Kp*error + Kd*d_error
+                        # PD output
+                        u = Kp*error + Kd*d_error
 
-                    # clamp
-                    u = max(min(u, 100), -100)
+                        # clamp
+                        u = max(min(u, 100), -100)
 
-                    with socketLock:
-                        # small deadband to avoid micro-wobble
-                        if abs(error) < 2:
-                            self.sock.sendall("a drive_straight(50)".encode())
-                        else:
-                            if u > 0:
-                                self.sock.sendall(f"a spin_left({int(abs(u))})".encode())
+                        with socketLock:
+                            # small deadband to avoid micro-wobble
+                            if abs(error) < 2:
+                                self.sock.sendall("a drive_straight(50)".encode())
                             else:
-                                self.sock.sendall(f"a spin_right({int(abs(u))})".encode())
+                                if u > 0:
+                                    self.sock.sendall(f"a spin_left({int(abs(u))})".encode())
+                                else:
+                                    self.sock.sendall(f"a spin_right({int(abs(u))})".encode())
 
-                        self.sock.recv(128)
+                            self.sock.recv(128)
 
                     """# error is diff between current heading and goal heading
                     ferb_head = self.video.heading
