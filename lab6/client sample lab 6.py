@@ -101,8 +101,8 @@ class StateMachine(threading.Thread):
 
                 else:
                     # Gains (tune these)
-                    Kp = 100
-                    Kd = 50
+                    Kp = 5
+                    Kd = 1
 
                     ferb_head = math.degrees(self.video.heading)
                     goal_head = math.degrees(self.video.headingGoal)
@@ -329,7 +329,7 @@ class ImageProc(threading.Thread):
             x2, y2 = map(int, tempPos)
             x1, y1 = map(int, self.lastPos)
 
-            if math.hypot(y2-y1, x2-x1) > 20:   # don't update position if the robot hasn't moved far
+            if math.hypot(y2-y1, x2-x1) > 5:   # don't update position if the robot hasn't moved far
                 self.heading = math.atan2(y2-y1, x2-x1)
                 self.currentPos = tempPos
 
