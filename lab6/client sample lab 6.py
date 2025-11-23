@@ -93,17 +93,19 @@ class StateMachine(threading.Thread):
                     self.STATE = States.GET_CIRCLE # start chasing goal
 
             elif self.STATE == States.GET_CIRCLE:
-                if self.video.distance == 0: # we are at goal, don't move
+
+                if self.video.distance is None or self.video.distance < 15: # we are at goal, don't move
                     with socketLock:
                         self.sock.sendall("a drive_straight(0)".encode())
                         self.sock.recv(128)
+
                 else:
                     # Gains (tune these)
                     Kp = 100
                     Kd = 50
 
-                    ferb_head = self.video.heading
-                    goal_head = self.video.headingGoal
+                    ferb_head = math.degrees(self.video.heading)
+                    goal_head = math.degrees(self.video.headingGoal)
 
                     if not ferb_head == None and not goal_head == None:
                         # compute error (wrap)
