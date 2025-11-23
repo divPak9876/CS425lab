@@ -239,7 +239,7 @@ class ImageProc(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)   # MUST call this to make sure we setup the thread correctly
         global IP_ADDRESS
-        self.cam = cv2.VideoCapture(1)
+        self.cam = cv2.VideoCapture(0)
         self.IP_ADDRESS = IP_ADDRESS
         self.PORT = 8081
         self.RUNNING = True
@@ -325,7 +325,7 @@ class ImageProc(threading.Thread):
         tempPos = self.findBoundingBox(stats)
 
         # compute ferb heading
-        if not tempPos == None and not self.lastPos == None:
+        if tempPos is not None and self.lastPos is not None:
             x2, y2 = map(int, tempPos)
             x1, y1 = map(int, self.lastPos)
 
@@ -333,8 +333,8 @@ class ImageProc(threading.Thread):
                 self.heading = math.atan2(y2-y1, x2-x1)
                 self.currentPos = tempPos
 
-                x3 = (math.cos(self.heading) * 50) + x2
-                y3 = (math.sin(self.heading) * 50) + y2
+                x3 = int((math.cos(self.heading) * 50) + x2)
+                y3 = int((math.sin(self.heading) * 50) + y2)
                 cv2.line(self.latestImg, (x3, y3), (x2, y2), (0, 255, 255), 2)
             
         elif self.currentPos == None:
