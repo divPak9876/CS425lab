@@ -18,7 +18,7 @@ imageLock = threading.Lock()
 
 IP_ADDRESS = "192.168.1.105" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
 RESIZE_SCALE = 2 # try a larger value if your computer is running slow.
-ENABLE_ROBOT_CONNECTION = True
+ENABLE_ROBOT_CONNECTION = False
 
 # You should fill this in with your states
 class States(enum.Enum):
@@ -160,7 +160,7 @@ class ImageProc(threading.Thread):
         self.RUNNING = True
         self.latestImg = []
         self.feedback = []
-        self.thresholds = {'lo_hue':0,'lo_saturation':0,'lo_value':0,'hi_hue':0,'hi_saturation':0,'hi_value':0}
+        self.thresholds = {'lo_hue':33,'lo_saturation':47,'lo_value':119,'hi_hue':86,'hi_saturation':86,'hi_value':175}
         self.visible = False
 
     def run(self):
@@ -203,13 +203,16 @@ class ImageProc(threading.Thread):
 
         lineMask = cv2.inRange(self.latestImg, low, high)
 
+        # erosion and dilation
         kernel = numpy.ones((3,3), numpy.uint8)
-        # insert erode/dilation
+        lineMask = cv2.erode(lineMask, kernel, iterations=1)
+        lineMask = cv2.dilate(lineMask, kernel, iterations=3)
+        lineMask = cv2.erode(lineMask, kernel, iterations=2)
 
         # further processing here (like connected components ect.)
 
         # END TODO
-        return lineMask
+        return cv2.bitwise_and(self.latestImg, self.latestImg, mask=lineMask)
     
 
 # END OF IMAGEPROC
