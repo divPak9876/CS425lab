@@ -160,7 +160,7 @@ class ImageProc(threading.Thread):
         self.RUNNING = True
         self.latestImg = []
         self.feedback = []
-        self.thresholds = {'lo_hue':33,'lo_saturation':47,'lo_value':119,'hi_hue':86,'hi_saturation':86,'hi_value':175}
+        self.thresholds = {'lo_hue':31,'lo_saturation':47,'lo_value':150,'hi_hue':80,'hi_saturation':94,'hi_value':183}
         self.visible = False
 
     def run(self):
