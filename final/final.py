@@ -18,7 +18,7 @@ imageLock = threading.Lock()
 
 IP_ADDRESS = "192.168.1.105" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
 RESIZE_SCALE = 2 # try a larger value if your computer is running slow.
-ENABLE_ROBOT_CONNECTION = False
+ENABLE_ROBOT_CONNECTION = True
 
 # You should fill this in with your states
 class States(enum.Enum):
@@ -89,8 +89,10 @@ class StateMachine(threading.Thread):
             # line following state
             if self.STATE == States.FOLLOW:
                 # fetch centroids
-                cx_top = self.video.centroids(0)
-                cx_bottom = self.video.centroids(1)
+                if self.video.centroids is None:
+                    continue  # Skip this iteration until centroids are available
+                cx_top = self.video.centroids[0]
+                cx_bottom = self.video.centroids[1]
 
                 # start control loop
                 if cx_bottom is None:
@@ -208,7 +210,7 @@ class ImageProc(threading.Thread):
         self.RUNNING = True
         self.latestImg = []
         self.feedback = []
-        self.thresholds = {'lo_hue':31,'lo_saturation':47,'lo_value':150,'hi_hue':80,'hi_saturation':94,'hi_value':183}
+        self.thresholds = {'lo_hue':0,'lo_saturation':63,'lo_value':144,'hi_hue':60,'hi_saturation':100,'hi_value':203}
         
         self.centroids = None
 
@@ -264,7 +266,7 @@ class ImageProc(threading.Thread):
         # END TODO
         return cv2.bitwise_and(self.latestImg, self.latestImg, mask=lineMask)
     
-    def centroid_x(slice):
+    def centroid_x(self, slice):
             M = cv2.moments(slice)
             if M["m00"] > 0:
                 return int(M["m10"] / M["m00"])
