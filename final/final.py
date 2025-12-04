@@ -114,18 +114,20 @@ class StateMachine(threading.Thread):
 
                 # gains
                 Kp_lat = 0.5     # lateral centering
-                Kp_ang = 0.3     # predictive turning
+                Kp_ang = 0.03     # predictive turning
                 
                 base_speed = 100
 
                 # control output
-                steering = Kp_lat * lateral_error + Kp_ang * angle_error
+                steering = Kp_lat * lateral_error
+                slowing = min(numpy.abs(Kp_ang * angle_error), 0.5)
 
-                left  = int(base_speed - steering)
-                right = int(base_speed + steering)
+                left  = int((base_speed - steering) * (1 - slowing))
+                right = int((base_speed + steering) * (1 - slowing))
 
-                print("Left:", left)
-                print("Right:", right)
+                print(slowing)
+                # print("Left:", left)
+                # print("Right:", right)
 
                 cmd = f"a drive_direct({left}, {right})"
 
