@@ -41,6 +41,7 @@ class StateMachine(threading.Thread):
 
         self.screenW = 320
         self.screenH = 240
+        self.direction = None
 
         # Start video
         self.video.start()
@@ -99,12 +100,14 @@ class StateMachine(threading.Thread):
                     with socketLock:
                         self.sock.sendall("a drive_direct(0, 0)".encode())
                         self.sock.recv(128)
-                    # self.STATE = States.LOST
+                    self.STATE = States.LOST
+                    print("fish.")
                     continue # skip
 
                 # error
                 center = self.screenW // 2
                 lateral_error = cx_bottom - center
+                self.direction = -1 if lateral_error < 0 else 1
 
                 # heading error
                 if cx_top is not None:
@@ -114,7 +117,7 @@ class StateMachine(threading.Thread):
 
                 # gains
                 Kp_lat = 0.5     # lateral centering
-                Kp_ang = 0.03     # predictive turning
+                Kp_ang = 0.01     # predictive turning
                 
                 base_speed = 100
 
@@ -125,7 +128,9 @@ class StateMachine(threading.Thread):
                 left  = int((base_speed - steering) * (1 - slowing))
                 right = int((base_speed + steering) * (1 - slowing))
 
-                print(slowing)
+                # debug statements
+                # print(angle_error)
+                # print(slowing)
                 # print("Left:", left)
                 # print("Right:", right)
 
@@ -137,9 +142,31 @@ class StateMachine(threading.Thread):
 
             # quitting
             elif self.STATE == States.LOST:
-                print("Lost line...giving up :(")
-                print("\nfish.")
-                self.RUNNING = False
+                cx_bottom = self.video.centroids[1]
+
+                if self.direction == 1:
+                    if cx_bottom is not None:
+                        self.STATE = States.FOLLOW
+                        with socketLock:
+                            self.sock.sendall("a direct_drive(0, 0)".encode())
+                            self.sock.recv(128)
+                        continue
+                    else:
+                        with socketLock:
+                            self.sock.sendall("a spin_right(50)".encode())
+                            self.sock.recv(128)
+
+                elif self.direction == -1:
+                    if cx_bottom is not None:
+                        self.STATE = States.FOLLOW
+                        with socketLock:
+                            self.sock.sendall("a direct_drive(0, 0)".encode())
+                            self.sock.recv(128)
+                        continue
+                    else:
+                        with socketLock:
+                            self.sock.sendall("a spin_left(50)".encode())
+                            self.sock.recv(128)
 
 
         # END OF CONTROL LOOP
@@ -285,8 +312,8 @@ class ImageProc(threading.Thread):
         h, w = mask.shape
 
         # Slice boundaries
-        top_y1, top_y2 = int(h*0.70), int(h*0.80)
-        bot_y1, bot_y2 = int(h*0.80), h
+        top_y1, top_y2 = int(h*0.60), int(h*0.75)
+        bot_y1, bot_y2 = int(h*0.75), h
 
         # Extract slices
         top_slice = mask[top_y1:top_y2, :]
