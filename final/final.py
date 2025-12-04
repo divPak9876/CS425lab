@@ -96,10 +96,11 @@ class StateMachine(threading.Thread):
 
                 # start control loop
                 if cx_bottom is None:
-                   with socketLock:
-                    self.sock.sendall("a drive_direct(0, 0)".encode())
-                    self.sock.recv(128)
-                   self.STATE = States.LOST
+                    with socketLock:
+                        self.sock.sendall("a drive_direct(0, 0)".encode())
+                        self.sock.recv(128)
+                    # self.STATE = States.LOST
+                    continue # skip
 
                 # error
                 center = self.screenW // 2
@@ -112,16 +113,19 @@ class StateMachine(threading.Thread):
                     angle_error = 0  # not available
 
                 # gains
-                Kp_lat = 0.004     # lateral centering
-                Kp_ang = 0.002     # predictive turning
+                Kp_lat = 0.5     # lateral centering
+                Kp_ang = 0.3     # predictive turning
                 
                 base_speed = 100
 
                 # control output
                 steering = Kp_lat * lateral_error + Kp_ang * angle_error
 
-                left  = int(base_speed + steering)
-                right = int(base_speed - steering)
+                left  = int(base_speed - steering)
+                right = int(base_speed + steering)
+
+                print("Left:", left)
+                print("Right:", right)
 
                 cmd = f"a drive_direct({left}, {right})"
 
@@ -132,6 +136,7 @@ class StateMachine(threading.Thread):
             # quitting
             elif self.STATE == States.LOST:
                 print("Lost line...giving up :(")
+                print("\nfish.")
                 self.RUNNING = False
 
 
@@ -210,7 +215,7 @@ class ImageProc(threading.Thread):
         self.RUNNING = True
         self.latestImg = []
         self.feedback = []
-        self.thresholds = {'lo_hue':0,'lo_saturation':63,'lo_value':144,'hi_hue':60,'hi_saturation':100,'hi_value':203}
+        self.thresholds = {'lo_hue':0,'lo_saturation':42,'lo_value':144,'hi_hue':60,'hi_saturation':100,'hi_value':203}
         
         self.centroids = None
 
@@ -258,7 +263,7 @@ class ImageProc(threading.Thread):
         kernel = numpy.ones((3,3), numpy.uint8)
         lineMask = cv2.erode(lineMask, kernel, iterations=1)
         lineMask = cv2.dilate(lineMask, kernel, iterations=3)
-        lineMask = cv2.erode(lineMask, kernel, iterations=2)
+        lineMask = cv2.erode(lineMask, kernel, iterations=1)
 
         # find centroids and update screen
         self.centroids, lineMask = self.get_centroids(lineMask)
@@ -278,8 +283,8 @@ class ImageProc(threading.Thread):
         h, w = mask.shape
 
         # Slice boundaries
-        top_y1, top_y2 = int(h*0.50), int(h*0.75)
-        bot_y1, bot_y2 = int(h*0.75), h
+        top_y1, top_y2 = int(h*0.70), int(h*0.80)
+        bot_y1, bot_y2 = int(h*0.80), h
 
         # Extract slices
         top_slice = mask[top_y1:top_y2, :]
@@ -301,11 +306,11 @@ class ImageProc(threading.Thread):
         # Draw centroid points
         for p in pts:
             if p is not None:
-                cv2.circle(mask, p, 6, (0, 255, 255), -1)
+                cv2.circle(self.latestImg, p, 6, (360, 255, 255), -1)
 
         # Draw connecting lines
         if pts[0] is not None and pts[1] is not None:
-            cv2.line(mask, pts[0], pts[1], (0, 255, 255), 2)
+            cv2.line(self.latestImg, pts[0], pts[1], (360, 255, 255), 2)
 
         return (cx_top, cx_bottom), mask
 
