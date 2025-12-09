@@ -17,7 +17,7 @@ socketLock = threading.Lock()
 imageLock = threading.Lock()
 
 IP_ADDRESS = "192.168.1.105" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
-RESIZE_SCALE = 2 # try a larger value if your computer is running slow.
+RESIZE_SCALE = 4 # try a larger value if your computer is running slow.
 ENABLE_ROBOT_CONNECTION = True
 
 # You should fill this in with your states
@@ -39,8 +39,8 @@ class StateMachine(threading.Thread):
         self.DIST = False
         self.video = ImageProc()
 
-        self.screenW = 320
-        self.screenH = 240
+        self.screenW = 160 #320
+        self.screenH = 120 #240
         self.direction = None
 
         # Start video
@@ -116,10 +116,10 @@ class StateMachine(threading.Thread):
                     angle_error = 0  # not available
 
                 # gains
-                Kp_lat = 0.5     # lateral centering
+                Kp_lat = 0.75     # lateral centering
                 Kp_ang = 0.01     # predictive turning
                 
-                base_speed = 100
+                base_speed = 350
 
                 # control output
                 steering = Kp_lat * lateral_error
@@ -153,7 +153,7 @@ class StateMachine(threading.Thread):
                         continue
                     else:
                         with socketLock:
-                            self.sock.sendall("a spin_right(50)".encode())
+                            self.sock.sendall("a spin_right(150)".encode())
                             self.sock.recv(128)
 
                 elif self.direction == -1:
@@ -165,7 +165,7 @@ class StateMachine(threading.Thread):
                         continue
                     else:
                         with socketLock:
-                            self.sock.sendall("a spin_left(50)".encode())
+                            self.sock.sendall("a spin_left(150)".encode())
                             self.sock.recv(128)
 
 
@@ -244,7 +244,7 @@ class ImageProc(threading.Thread):
         self.RUNNING = True
         self.latestImg = []
         self.feedback = []
-        self.thresholds = {'lo_hue':0,'lo_saturation':42,'lo_value':144,'hi_hue':60,'hi_saturation':100,'hi_value':203}
+        self.thresholds = {'lo_hue':20,'lo_saturation':39,'lo_value':110,'hi_hue':82,'hi_saturation':89,'hi_value':181}
         
         self.centroids = None
 
