@@ -112,21 +112,31 @@ class StateMachine(threading.Thread):
                 # heading error
                 if cx_top is not None:
                     angle_error = cx_top - cx_bottom
+                    curve_severity = abs(angle_error) + abs(lateral_error)
                 else:
                     angle_error = 0  # not available
+                    curve_severity = abs(lateral_error)
 
                 # gains
                 Kp_lat = 0.75     # lateral centering
                 Kp_ang = 0.01     # predictive turning
                 
-                base_speed = 350
+                # base_speed = 350
+                # Adaptive base speed
+                base_speed = 300 - int(curve_severity * 0.8)  # Slow down in curves
+                base_speed = max(100, min(300, base_speed))  # Clamp between 100-300
 
                 # control output
-                steering = Kp_lat * lateral_error
-                slowing = min(numpy.abs(Kp_ang * angle_error), 0.5)
+                Kp_lat = 0.75
+                Kp_ang = 0.5  # Much larger than 0.01!
 
-                left  = int((base_speed - steering) * (1 - slowing))
-                right = int((base_speed + steering) * (1 - slowing))
+                steering = Kp_lat * lateral_error + Kp_ang * angle_error
+
+                """steering = Kp_lat * lateral_error
+                slowing = min(numpy.abs(Kp_ang * angle_error), 0.5)"""
+
+                left  = int((base_speed - steering))
+                right = int((base_speed + steering))
 
                 # debug statements
                 # print(angle_error)
@@ -312,8 +322,8 @@ class ImageProc(threading.Thread):
         h, w = mask.shape
 
         # Slice boundaries
-        top_y1, top_y2 = int(h*0.60), int(h*0.75)
-        bot_y1, bot_y2 = int(h*0.75), h
+        top_y1, top_y2 = int(h*0.50), int(h*0.70)
+        bot_y1, bot_y2 = int(h*0.70), h
 
         # Extract slices
         top_slice = mask[top_y1:top_y2, :]
