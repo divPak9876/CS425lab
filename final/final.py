@@ -17,7 +17,7 @@ socketLock = threading.Lock()
 imageLock = threading.Lock()
 
 IP_ADDRESS = "192.168.1.105" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
-RESIZE_SCALE = 2 # try a larger value if your computer is running slow.
+RESIZE_SCALE = 4 # try a larger value if your computer is running slow.
 ENABLE_ROBOT_CONNECTION = True
 
 # You should fill this in with your states
@@ -39,8 +39,8 @@ class StateMachine(threading.Thread):
         self.DIST = False
         self.video = ImageProc()
 
-        self.screenW = 320
-        self.screenH = 240
+        self.screenW = 160 #320
+        self.screenH = 120 #240
         self.direction = None
 
         # Start video
@@ -112,21 +112,31 @@ class StateMachine(threading.Thread):
                 # heading error
                 if cx_top is not None:
                     angle_error = cx_top - cx_bottom
+                    curve_severity = abs(angle_error) + abs(lateral_error)
                 else:
                     angle_error = 0  # not available
+                    curve_severity = abs(lateral_error)
 
                 # gains
-                Kp_lat = 0.5     # lateral centering
+                Kp_lat = 0.75     # lateral centering
                 Kp_ang = 0.01     # predictive turning
                 
-                base_speed = 100
+                # base_speed = 350
+                # Adaptive base speed
+                base_speed = 300 - int(curve_severity * 0.8)  # Slow down in curves
+                base_speed = max(100, min(300, base_speed))  # Clamp between 100-300
 
                 # control output
-                steering = Kp_lat * lateral_error
-                slowing = min(numpy.abs(Kp_ang * angle_error), 0.5)
+                Kp_lat = 0.75
+                Kp_ang = 0.5  # Much larger than 0.01!
 
-                left  = int((base_speed - steering) * (1 - slowing))
-                right = int((base_speed + steering) * (1 - slowing))
+                steering = Kp_lat * lateral_error + Kp_ang * angle_error
+
+                """steering = Kp_lat * lateral_error
+                slowing = min(numpy.abs(Kp_ang * angle_error), 0.5)"""
+
+                left  = int((base_speed - steering))
+                right = int((base_speed + steering))
 
                 # debug statements
                 # print(angle_error)
@@ -153,7 +163,7 @@ class StateMachine(threading.Thread):
                         continue
                     else:
                         with socketLock:
-                            self.sock.sendall("a spin_right(50)".encode())
+                            self.sock.sendall("a spin_right(150)".encode())
                             self.sock.recv(128)
 
                 elif self.direction == -1:
@@ -165,7 +175,7 @@ class StateMachine(threading.Thread):
                         continue
                     else:
                         with socketLock:
-                            self.sock.sendall("a spin_left(50)".encode())
+                            self.sock.sendall("a spin_left(150)".encode())
                             self.sock.recv(128)
 
 
@@ -244,7 +254,7 @@ class ImageProc(threading.Thread):
         self.RUNNING = True
         self.latestImg = []
         self.feedback = []
-        self.thresholds = {'lo_hue':0,'lo_saturation':42,'lo_value':144,'hi_hue':60,'hi_saturation':100,'hi_value':203}
+        self.thresholds = {'lo_hue':20,'lo_saturation':39,'lo_value':110,'hi_hue':82,'hi_saturation':89,'hi_value':181}
         
         self.centroids = None
 
@@ -312,8 +322,8 @@ class ImageProc(threading.Thread):
         h, w = mask.shape
 
         # Slice boundaries
-        top_y1, top_y2 = int(h*0.60), int(h*0.75)
-        bot_y1, bot_y2 = int(h*0.75), h
+        top_y1, top_y2 = int(h*0.50), int(h*0.70)
+        bot_y1, bot_y2 = int(h*0.70), h
 
         # Extract slices
         top_slice = mask[top_y1:top_y2, :]
