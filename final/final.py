@@ -96,7 +96,7 @@ class StateMachine(threading.Thread):
                     continue
 
                 # Find lookahead point at fixed distance (e.g., 40 pixels ahead)
-                lookahead_distance = 10
+                lookahead_distance = 15
                 robot_y = self.screenH  # Robot at bottom
 
                 target_point = None
@@ -121,12 +121,21 @@ class StateMachine(threading.Thread):
                 L = robot_y - target_point[1]  # Distance to target
                 alpha = numpy.arctan2(lateral_error, L)  # Angle to target
 
-                base_speed = 300
+                """if abs(lateral_error) > 30:
+                    base_speed = 200  # Slow way down for sharp turns
+                elif abs(lateral_error) > 15:
+                    base_speed = 300
+                else:
+                    base_speed = 450  # Fast on straights"""
+                
+                diff = self.calculate_track_difficulty(points,)
+                base_speed = 400 * (1 - diff)
+
+                print(diff)
 
                 # Convert to wheel speeds
                 curvature = 2 * numpy.sin(alpha) / L if L > 0 else 0
-                steering = int(curvature * 400)  # Scale factor
-                print(steering)
+                steering = int(curvature * base_speed * 1.2)  # Scale factor
 
                 left  = int(base_speed - steering)
                 right = int(base_speed + steering)
@@ -170,7 +179,6 @@ class StateMachine(threading.Thread):
                         self.sock.sendall("a drive_direct(-50, 50)".encode())
                         self.sock.recv(128)
 
-
         # END OF CONTROL LOOP
         
         # First stop any other threads talking to the robot
@@ -213,6 +221,29 @@ class StateMachine(threading.Thread):
             self.sensors.RUNNING = False
             self.video.RUNNING = False
             return False
+        
+    def calculate_track_difficulty(self, points):
+            """Returns 0-1, where 1 = most difficult/tight"""
+            if len(points) < 2:
+                return 0.5
+            
+            # Curvature
+            curvature = 0
+            if len(points) >= 3:
+                p1, p2, p3 = points[-1], points[len(points)//2], points[0]
+                angle1 = numpy.arctan2(p2[1] - p1[1], p2[0] - p1[0])
+                angle2 = numpy.arctan2(p3[1] - p2[1], p3[0] - p2[0])
+                curvature = abs(angle2 - angle1) / numpy.pi
+            
+            # Spread
+            x_coords = [p[0] for p in points]
+            spread = (max(x_coords) - min(x_coords)) / (self.screenW * 0.8)
+            
+            # Continuity
+            continuity_loss = 1 - (len(points) / 6.0)
+            
+            difficulty = continuity_loss # 0.5 * curvature + 0.3 * spread + 0.2 * continuity_loss
+            return min(difficulty, 1.0)
 
 
 # END OF STATEMACHINE
@@ -247,7 +278,8 @@ class ImageProc(threading.Thread):
         self.latestImg = []
         self.feedback = []
         self.thresholds = {'lo_hue':0,'lo_saturation':42,'lo_value':144,'hi_hue':80,'hi_saturation':100,'hi_value':203}
-        
+        # self.thresholds = {'lo_hue':0,'lo_saturation':58,'lo_value':171,'hi_hue':104,'hi_saturation':142,'hi_value' :255}
+
         self.centroids = []
         self.target = None
 
