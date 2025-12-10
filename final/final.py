@@ -101,7 +101,7 @@ class StateMachine(threading.Thread):
                         self.sock.sendall("a drive_direct(0, 0)".encode())
                         self.sock.recv(128)
                     self.STATE = States.LOST
-                    print("fish.")
+                    print("blows up ferb with mind.")
                     continue # skip
 
                 # error
@@ -116,19 +116,15 @@ class StateMachine(threading.Thread):
                 else:
                     angle_error = 0  # not available
                     curve_severity = abs(lateral_error)
-
-                # gains
-                Kp_lat = 0.75     # lateral centering
-                Kp_ang = 0.01     # predictive turning
                 
                 # base_speed = 350
                 # Adaptive base speed
                 base_speed = 350 - int(curve_severity * 0.8)  # Slow down in curves
-                base_speed = max(100, min(300, base_speed))  # Clamp between 100-300
+                base_speed = max(50, min(350, base_speed))  # Clamp between 100-300
 
                 # control output
-                Kp_lat = 0.75
-                Kp_ang = 0.5  # Much larger than 0.01!
+                Kp_lat = 1.5 # 0.75
+                Kp_ang = 1.5 # 0.5
 
                 steering = Kp_lat * lateral_error + Kp_ang * angle_error
 
@@ -150,33 +146,31 @@ class StateMachine(threading.Thread):
                     self.sock.sendall(cmd.encode())
                     self.sock.recv(128)
 
-            # quitting
+            # finding line again
             elif self.STATE == States.LOST:
                 cx_bottom = self.video.centroids[1]
 
-                if self.direction == 1:
-                    if cx_bottom is not None:
-                        self.STATE = States.FOLLOW
-                        with socketLock:
-                            self.sock.sendall("a direct_drive(0, 0)".encode())
-                            self.sock.recv(128)
-                        continue
-                    else:
-                        with socketLock:
-                            self.sock.sendall("a spin_right(150)".encode())
-                            self.sock.recv(128)
+                if cx_bottom is not None:
+                    self.STATE = States.FOLLOW
+                    with socketLock:
+                        self.sock.sendall("a direct_drive(0, 0)".encode())
+                        self.sock.recv(128)
+                    continue
+
+                elif self.direction == 1:
+                    with socketLock:
+                        self.sock.sendall("a spin_right(100)".encode())
+                        self.sock.recv(128)
 
                 elif self.direction == -1:
-                    if cx_bottom is not None:
-                        self.STATE = States.FOLLOW
-                        with socketLock:
-                            self.sock.sendall("a direct_drive(0, 0)".encode())
-                            self.sock.recv(128)
-                        continue
-                    else:
-                        with socketLock:
-                            self.sock.sendall("a spin_left(150)".encode())
-                            self.sock.recv(128)
+                    with socketLock:
+                        self.sock.sendall("a spin_left(100)".encode())
+                        self.sock.recv(128)
+
+                else:
+                    with socketLock:
+                        self.sock.sendall("a spin_left(50)".encode())
+                        self.sock.recv(128)
 
 
         # END OF CONTROL LOOP
@@ -300,9 +294,9 @@ class ImageProc(threading.Thread):
 
         # erosion and dilation
         kernel = numpy.ones((3,3), numpy.uint8)
-        lineMask = cv2.erode(lineMask, kernel, iterations=1)
-        lineMask = cv2.dilate(lineMask, kernel, iterations=3)
-        lineMask = cv2.erode(lineMask, kernel, iterations=1)
+        # lineMask = cv2.erode(lineMask, kernel, iterations=1)
+        lineMask = cv2.dilate(lineMask, kernel, iterations=1)
+        # lineMask = cv2.erode(lineMask, kernel, iterations=1)
 
         # find centroids and update screen
         self.centroids, lineMask = self.get_centroids(lineMask)
