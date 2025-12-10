@@ -248,7 +248,8 @@ class ImageProc(threading.Thread):
         self.RUNNING = True
         self.latestImg = []
         self.feedback = []
-        self.thresholds = {'lo_hue':0,'lo_saturation':25,'lo_value':108,'hi_hue':88,'hi_saturation':97,'hi_value':167}
+        # self.thresholds = {'lo_hue':0,'lo_saturation':25,'lo_value':108,'hi_hue':88,'hi_saturation':97,'hi_value':167}
+        self.thresholds = {'lo_hue':0,'lo_saturation':25,'lo_value':136,'hi_hue':88,'hi_saturation':97,'hi_value':202}
         
         self.centroids = None
 
