@@ -121,16 +121,18 @@ class StateMachine(threading.Thread):
                 L = robot_y - target_point[1]  # Distance to target
                 alpha = numpy.arctan2(lateral_error, L)  # Angle to target
 
+                mod = 1
+
                 if abs(lateral_error) > 30:
-                    base_speed = 200  # Slow way down for sharp turns
+                    base_speed = 200 * mod  # Slow way down for sharp turns
                 elif abs(lateral_error) > 15:
-                    base_speed = 300
+                    base_speed = 300 * mod
                 else:
-                    base_speed = 450  # Fast on straights 
+                    base_speed = 450 * mod  # Fast on straights 
 
                 # Convert to wheel speeds
                 curvature = 2 * numpy.sin(alpha) / L if L > 0 else 0
-                steering = int(curvature * base_speed * 1.2)  # Scale factor
+                steering = int(curvature * base_speed * 1.5)  # Scale factor
 
                 left  = int(base_speed - steering)
                 right = int(base_speed + steering)
@@ -162,11 +164,11 @@ class StateMachine(threading.Thread):
                 # Otherwise, spin in last known direction
                 if self.direction == 1:
                     with socketLock:
-                        self.sock.sendall("a drive_direct(-150, 150)".encode())  # Changed to drive_direct
+                        self.sock.sendall("a drive_direct(-100, 100)".encode())  # Changed to drive_direct
                         self.sock.recv(128)
                 elif self.direction == -1:
                     with socketLock:
-                        self.sock.sendall("a drive_direct(150, -150)".encode())  # Changed to drive_direct
+                        self.sock.sendall("a drive_direct(100, -100)".encode())  # Changed to drive_direct
                         self.sock.recv(128)
                 else:
                     # If no direction set yet, just spin right
@@ -249,7 +251,7 @@ class ImageProc(threading.Thread):
         self.RUNNING = True
         self.latestImg = []
         self.feedback = []
-        self.thresholds = {'lo_hue':0,'lo_saturation':42,'lo_value':144,'hi_hue':80,'hi_saturation':100,'hi_value':203}
+        self.thresholds = {'lo_hue':0,'lo_saturation':42,'lo_value':102,'hi_hue':80,'hi_saturation':100,'hi_value':203}
         # self.thresholds = {'lo_hue':0,'lo_saturation':58,'lo_value':171,'hi_hue':104,'hi_saturation':142,'hi_value' :255}
 
         self.centroids = []
