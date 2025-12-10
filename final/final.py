@@ -123,7 +123,7 @@ class StateMachine(threading.Thread):
                 
                 # base_speed = 350
                 # Adaptive base speed
-                base_speed = 300 - int(curve_severity * 0.8)  # Slow down in curves
+                base_speed = 350 - int(curve_severity * 0.8)  # Slow down in curves
                 base_speed = max(100, min(300, base_speed))  # Clamp between 100-300
 
                 # control output
@@ -254,7 +254,7 @@ class ImageProc(threading.Thread):
         self.RUNNING = True
         self.latestImg = []
         self.feedback = []
-        self.thresholds = {'lo_hue':20,'lo_saturation':39,'lo_value':110,'hi_hue':82,'hi_saturation':89,'hi_value':181}
+        self.thresholds = {'lo_hue':0,'lo_saturation':25,'lo_value':108,'hi_hue':88,'hi_saturation':97,'hi_value':167}
         
         self.centroids = None
 
