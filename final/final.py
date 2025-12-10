@@ -17,7 +17,7 @@ socketLock = threading.Lock()
 imageLock = threading.Lock()
 
 IP_ADDRESS = "192.168.1.105" 	# SET THIS TO THE RASPBERRY PI's IP ADDRESS
-RESIZE_SCALE = 2 # try a larger value if your computer is running slow.
+RESIZE_SCALE = 4 # try a larger value if your computer is running slow.
 ENABLE_ROBOT_CONNECTION = True
 
 # You should fill this in with your states
@@ -39,8 +39,9 @@ class StateMachine(threading.Thread):
         self.DIST = False
         self.video = ImageProc()
 
-        self.screenW = 320
-        self.screenH = 240
+        self.screenW = 320 / 2
+        self.screenH = 240 / 2
+        self.center = self.screenW / 2
         self.direction = None
 
         # Start video
@@ -89,44 +90,46 @@ class StateMachine(threading.Thread):
 
             # line following state
             if self.STATE == States.FOLLOW:
-                # fetch centroids
-                if self.video.centroids is None:
-                    continue  # Skip this iteration until centroids are available
-                cx_top = self.video.centroids[0]
-                cx_bottom = self.video.centroids[1]
-
-                # start control loop
-                if cx_bottom is None:
-                    with socketLock:
-                        self.sock.sendall("a drive_direct(0, 0)".encode())
-                        self.sock.recv(128)
+                points = self.video.centroids
+                if len(points) == 0 or points is None:
                     self.STATE = States.LOST
-                    print("fish.")
-                    continue # skip
+                    continue
 
-                # error
-                center = self.screenW // 2
-                lateral_error = cx_bottom - center
-                self.direction = -1 if lateral_error < 0 else 1
+                # Find lookahead point at fixed distance (e.g., 40 pixels ahead)
+                lookahead_distance = 10
+                robot_y = self.screenH  # Robot at bottom
 
-                # heading error
-                if cx_top is not None:
-                    angle_error = cx_top - cx_bottom
-                else:
-                    angle_error = 0  # not available
+                target_point = None
+                for px, py in points:
+                    if (robot_y - py) >= lookahead_distance:
+                        target_point = (px, py)
+                        break
 
-                # gains
-                Kp_lat = 0.5     # lateral centering
-                Kp_ang = 0.01     # predictive turning
-                
-                base_speed = 100
+                if target_point is None:
+                    target_point = points[0]  # Use farthest available
 
-                # control output
-                steering = Kp_lat * lateral_error
-                slowing = min(numpy.abs(Kp_ang * angle_error), 0.5)
+                self.video.target = (int(target_point[0]), int(target_point[1]))
 
-                left  = int((base_speed - steering) * (1 - slowing))
-                right = int((base_speed + steering) * (1 - slowing))
+                lateral_error = target_point[0] - self.center
+
+                if lateral_error > 10:
+                    self.direction = 1
+                elif lateral_error < -10:
+                    self.direction = -1
+
+                # Pure pursuit curvature calculation
+                L = robot_y - target_point[1]  # Distance to target
+                alpha = numpy.arctan2(lateral_error, L)  # Angle to target
+
+                base_speed = 300
+
+                # Convert to wheel speeds
+                curvature = 2 * numpy.sin(alpha) / L if L > 0 else 0
+                steering = int(curvature * 400)  # Scale factor
+                print(steering)
+
+                left  = int(base_speed - steering)
+                right = int(base_speed + steering)
 
                 # debug statements
                 # print(angle_error)
@@ -142,31 +145,30 @@ class StateMachine(threading.Thread):
 
             # quitting
             elif self.STATE == States.LOST:
-                cx_bottom = self.video.centroids[1]
-
+                points = self.video.centroids  # Get the list of points
+                
+                # Check if we found the line again
+                if points is not None and len(points) > 0:
+                    self.STATE = States.FOLLOW
+                    with socketLock:
+                        self.sock.sendall("a drive_direct(0, 0)".encode())
+                        self.sock.recv(128)
+                    continue
+                
+                # Otherwise, spin in last known direction
                 if self.direction == 1:
-                    if cx_bottom is not None:
-                        self.STATE = States.FOLLOW
-                        with socketLock:
-                            self.sock.sendall("a direct_drive(0, 0)".encode())
-                            self.sock.recv(128)
-                        continue
-                    else:
-                        with socketLock:
-                            self.sock.sendall("a spin_right(50)".encode())
-                            self.sock.recv(128)
-
+                    with socketLock:
+                        self.sock.sendall("a drive_direct(-150, 150)".encode())  # Changed to drive_direct
+                        self.sock.recv(128)
                 elif self.direction == -1:
-                    if cx_bottom is not None:
-                        self.STATE = States.FOLLOW
-                        with socketLock:
-                            self.sock.sendall("a direct_drive(0, 0)".encode())
-                            self.sock.recv(128)
-                        continue
-                    else:
-                        with socketLock:
-                            self.sock.sendall("a spin_left(50)".encode())
-                            self.sock.recv(128)
+                    with socketLock:
+                        self.sock.sendall("a drive_direct(150, -150)".encode())  # Changed to drive_direct
+                        self.sock.recv(128)
+                else:
+                    # If no direction set yet, just spin right
+                    with socketLock:
+                        self.sock.sendall("a drive_direct(-50, 50)".encode())
+                        self.sock.recv(128)
 
 
         # END OF CONTROL LOOP
@@ -244,9 +246,10 @@ class ImageProc(threading.Thread):
         self.RUNNING = True
         self.latestImg = []
         self.feedback = []
-        self.thresholds = {'lo_hue':0,'lo_saturation':42,'lo_value':144,'hi_hue':60,'hi_saturation':100,'hi_value':203}
+        self.thresholds = {'lo_hue':0,'lo_saturation':42,'lo_value':144,'hi_hue':80,'hi_saturation':100,'hi_value':203}
         
-        self.centroids = None
+        self.centroids = []
+        self.target = None
 
     def run(self):
         url = "http://"+self.IP_ADDRESS+":"+str(self.PORT)
@@ -291,8 +294,8 @@ class ImageProc(threading.Thread):
         # erosion and dilation
         kernel = numpy.ones((3,3), numpy.uint8)
         lineMask = cv2.erode(lineMask, kernel, iterations=1)
-        lineMask = cv2.dilate(lineMask, kernel, iterations=3)
-        lineMask = cv2.erode(lineMask, kernel, iterations=1)
+        lineMask = cv2.dilate(lineMask, kernel, iterations=1)
+        #lineMask = cv2.erode(lineMask, kernel, iterations=1)
 
         # find centroids and update screen
         self.centroids, lineMask = self.get_centroids(lineMask)
@@ -308,40 +311,23 @@ class ImageProc(threading.Thread):
                 return None
 
     def get_centroids(self, mask):
-
         h, w = mask.shape
-
-        # Slice boundaries
-        top_y1, top_y2 = int(h*0.60), int(h*0.75)
-        bot_y1, bot_y2 = int(h*0.75), h
-
-        # Extract slices
-        top_slice = mask[top_y1:top_y2, :]
-        bottom_slice = mask[bot_y1:bot_y2, :]
-
-        cx_top = self.centroid_x(top_slice)
-        cx_bottom = self.centroid_x(bottom_slice)
-
-        # Centroid y-positions (middle of each slice)
-        cy_top = (top_y1 + top_y2) // 2
-        cy_bottom = (bot_y1 + bot_y2) // 2
-
-        pts = []
-
-        # Collect valid points
-        pts.append((cx_top, cy_top) if cx_top    is not None else None)
-        pts.append((cx_bottom, cy_bottom) if cx_bottom is not None else None)
-
-        # Draw centroid points
-        for p in pts:
-            if p is not None:
-                cv2.circle(self.latestImg, p, 6, (360, 255, 255), -1)
-
-        # Draw connecting lines
-        if pts[0] is not None and pts[1] is not None:
-            cv2.line(self.latestImg, pts[0], pts[1], (360, 255, 255), 2)
-
-        return (cx_top, cx_bottom), mask
+        
+        # Sample multiple points along the line
+        points = []
+        for y_frac in [0.95, 0.85, 0.75, 0.65, 0.55, 0.45]:
+            y1, y2 = int(h*y_frac) - 5, int(h*y_frac) + 5
+            cx = self.centroid_x(mask[y1:y2, :])
+            if cx is not None:
+                points.append((cx, int(h*y_frac)))
+        
+        # Draw target point if provided
+        if self.target is not None:
+            cv2.circle(mask, self.target, 8, (350, 255, 255), 2)
+            # Draw line from robot to target
+            cv2.line(mask, (int(w / 2), h), self.target, (360, 255, 255), 2)
+    
+        return points, mask
 
 
 # END OF IMAGEPROC
