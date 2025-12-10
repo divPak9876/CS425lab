@@ -121,17 +121,12 @@ class StateMachine(threading.Thread):
                 L = robot_y - target_point[1]  # Distance to target
                 alpha = numpy.arctan2(lateral_error, L)  # Angle to target
 
-                """if abs(lateral_error) > 30:
+                if abs(lateral_error) > 30:
                     base_speed = 200  # Slow way down for sharp turns
                 elif abs(lateral_error) > 15:
                     base_speed = 300
                 else:
-                    base_speed = 450  # Fast on straights"""
-                
-                diff = self.calculate_track_difficulty(points,)
-                base_speed = 400 * (1 - diff)
-
-                print(diff)
+                    base_speed = 450  # Fast on straights 
 
                 # Convert to wheel speeds
                 curvature = 2 * numpy.sin(alpha) / L if L > 0 else 0
@@ -221,29 +216,6 @@ class StateMachine(threading.Thread):
             self.sensors.RUNNING = False
             self.video.RUNNING = False
             return False
-        
-    def calculate_track_difficulty(self, points):
-            """Returns 0-1, where 1 = most difficult/tight"""
-            if len(points) < 2:
-                return 0.5
-            
-            # Curvature
-            curvature = 0
-            if len(points) >= 3:
-                p1, p2, p3 = points[-1], points[len(points)//2], points[0]
-                angle1 = numpy.arctan2(p2[1] - p1[1], p2[0] - p1[0])
-                angle2 = numpy.arctan2(p3[1] - p2[1], p3[0] - p2[0])
-                curvature = abs(angle2 - angle1) / numpy.pi
-            
-            # Spread
-            x_coords = [p[0] for p in points]
-            spread = (max(x_coords) - min(x_coords)) / (self.screenW * 0.8)
-            
-            # Continuity
-            continuity_loss = 1 - (len(points) / 6.0)
-            
-            difficulty = continuity_loss # 0.5 * curvature + 0.3 * spread + 0.2 * continuity_loss
-            return min(difficulty, 1.0)
 
 
 # END OF STATEMACHINE
